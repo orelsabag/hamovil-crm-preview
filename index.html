@@ -413,20 +413,35 @@ function seed(){
 /* ===== Supabase של המוביל סנטר (על שם הלקוח) — RLS: רק orel@sol-ix.ai ===== */
 const SB_URL='https://paaabtfmaagqifezvnxo.supabase.co';
 const SB_ANON='sb_publishable_0vi4Csf3X4mRKBTxZ3IuNA_RwSLHy3q';   // client-side key; RLS מגן על הנתונים
-let _cache=[], _token=sessionStorage.getItem('hc_token')||null;
+const SESS_KEY='hc_sess', MONTH_MS=30*24*60*60*1000;   // ניתוק רק אחרי חודש חוסר פעילות
+let _cache=[], _token=null;
 
-async function sbFetch(path, opts={}){
+function loadSess(){ try{return JSON.parse(localStorage.getItem(SESS_KEY));}catch(e){return null;} }
+function saveSess(j){ localStorage.setItem(SESS_KEY, JSON.stringify({access:j.access_token, refresh:j.refresh_token, last:Date.now()})); _token=j.access_token; }
+function touchSess(){ const s=loadSess(); if(s){ s.last=Date.now(); localStorage.setItem(SESS_KEY, JSON.stringify(s)); } }
+function clearSess(){ localStorage.removeItem(SESS_KEY); _token=null; }
+async function refreshToken(){ const s=loadSess(); if(!s||!s.refresh) return false;
+  const res=await fetch(SB_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',
+    headers:{'apikey':SB_ANON,'Content-Type':'application/json'}, body:JSON.stringify({refresh_token:s.refresh})});
+  if(!res.ok) return false; saveSess(await res.json()); return true; }
+
+async function sbFetch(path, opts={}, _retry=true){
   const h=Object.assign({'apikey':SB_ANON,'Authorization':'Bearer '+(_token||SB_ANON),'Content-Type':'application/json'}, opts.headers||{});
-  return fetch(SB_URL+path, {...opts, headers:h});
+  const res=await fetch(SB_URL+path, {...opts, headers:h});
+  if(res.status===401 && _retry && _token){ if(await refreshToken()) return sbFetch(path, opts, false); }
+  return res;
 }
 async function login(email, password){
   const res=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
     method:'POST', headers:{'apikey':SB_ANON,'Content-Type':'application/json'},
     body:JSON.stringify({email:email.trim(), password})});
   if(!res.ok) throw new Error('auth');
-  const j=await res.json(); _token=j.access_token; sessionStorage.setItem('hc_token',_token); return j;
+  saveSess(await res.json()); return true;
 }
-function logout(){ _token=null; sessionStorage.removeItem('hc_token'); location.reload(); }
+async function rpc(fn, args){ const res=await fetch(SB_URL+'/rest/v1/rpc/'+fn,{method:'POST',
+    headers:{'apikey':SB_ANON,'Authorization':'Bearer '+SB_ANON,'Content-Type':'application/json'}, body:JSON.stringify(args)});
+  if(!res.ok) throw new Error('rpc '+res.status); return res.json(); }
+function logout(){ clearSess(); location.reload(); }
 
 const toLocal=p=>(p&&p.indexOf('+972')===0)?'0'+p.slice(4):(p||'');
 const mapRow=r=>({id:r.id,name:r.name,phone:toLocal(r.phone),birthday:r.birthday,
@@ -819,17 +834,31 @@ function injectLogin(){
 #login .lg-btn{width:100%;background:#DC2626;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15.5px;font-weight:800;cursor:pointer;margin-top:6px;font-family:inherit;box-shadow:0 10px 22px rgba(220,38,38,.28)}
 #login .lg-btn:disabled{opacity:.6;cursor:default}
 #login .lg-err{color:#DC2626;font-size:13px;font-weight:600;min-height:18px;margin-top:10px}
-#login .lg-foot{color:#9aa7bd;font-size:11px;margin-top:14px;line-height:1.5}`;
+#login .lg-foot{color:#9aa7bd;font-size:11px;margin-top:14px;line-height:1.5}
+#login .lg-link{display:block;margin:14px auto 0;background:none;border:none;color:#DC2626;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:underline}`;
   document.head.appendChild(st);
   const d=document.createElement('div'); d.id='login';
-  d.innerHTML=`<form class="lg-card" onsubmit="doLogin(event)">
+  d.innerHTML=`<form class="lg-card" id="lg-login" onsubmit="doLogin(event)">
     <img class="lg-logo" src="assets/logo.png" alt="המוביל סנטר">
     <h1>מערכת ניהול מועדון</h1><div class="lg-sub">המוביל סנטר · כניסת מנהל</div>
     <div class="lg-f"><label>אימייל</label><input id="lg-email" type="email" autocomplete="username" placeholder="you@example.com" required></div>
     <div class="lg-f"><label>סיסמה</label><input id="lg-pw" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
     <button class="lg-btn" id="lg-btn" type="submit">כניסה</button>
     <div class="lg-err" id="lg-err"></div>
+    <button type="button" class="lg-link" onclick="showReset()">שכחתי סיסמה</button>
     <div class="lg-foot">🔒 גישה מאובטחת · הנתונים ב-Supabase של המוביל סנטר</div>
+  </form>
+  <form class="lg-card" id="lg-reset" style="display:none" onsubmit="doReset(event)">
+    <img class="lg-logo" src="assets/logo.png" alt="המוביל סנטר">
+    <h1>איפוס סיסמה</h1><div class="lg-sub" id="rs-sub">נשלח קוד בן 5 ספרות למייל המנהל</div>
+    <div id="rs-step1"><button type="button" class="lg-btn" id="rs-send" onclick="sendResetCode()">שליחת קוד למייל</button></div>
+    <div id="rs-step2" style="display:none">
+      <div class="lg-f"><label>קוד בן 5 ספרות</label><input id="rs-code" inputmode="numeric" maxlength="5" placeholder="•••••" style="text-align:center;letter-spacing:8px;font-size:22px"></div>
+      <div class="lg-f"><label>סיסמה חדשה</label><input id="rs-pw" type="password" autocomplete="new-password" placeholder="לפחות 8 תווים"></div>
+      <button class="lg-btn" type="submit">איפוס וכניסה</button>
+    </div>
+    <div class="lg-err" id="rs-err"></div>
+    <button type="button" class="lg-link" onclick="backToLogin()">חזרה להתחברות</button>
   </form>`;
   document.body.appendChild(d);
 }
@@ -842,10 +871,38 @@ async function doLogin(e){
   try{ await login(email,pw); await Store.load(); showApp(); render(); }
   catch(err){ $('#lg-err').textContent='מייל או סיסמה שגויים'; btn.disabled=false; }
 }
+/* ===== שכחתי סיסמה (קוד 5 ספרות → מייל → איפוס) ===== */
+function showReset(){ $('#lg-login').style.display='none'; $('#lg-reset').style.display='block'; $('#rs-err').textContent=''; }
+function backToLogin(){ $('#lg-reset').style.display='none'; $('#lg-login').style.display='block';
+  $('#rs-step1').style.display='block'; $('#rs-step2').style.display='none'; $('#rs-err').textContent=''; }
+async function sendResetCode(){
+  const b=$('#rs-send'); b.disabled=true; b.textContent='שולח…'; $('#rs-err').textContent='';
+  try{ await rpc('request_reset_code',{p_email:'orel@sol-ix.ai'}); }catch(e){}
+  $('#rs-step1').style.display='none'; $('#rs-step2').style.display='block';
+  $('#rs-sub').textContent='קוד נשלח למייל המנהל · הזן אותו כאן'; setTimeout(()=>{const c=$('#rs-code');if(c)c.focus();},50);
+}
+async function doReset(e){
+  e.preventDefault();
+  const code=($('#rs-code').value||'').trim(), pw=$('#rs-pw').value;
+  if(!/^\d{5}$/.test(code)){ $('#rs-err').textContent='קוד חייב להיות 5 ספרות'; return; }
+  if(pw.length<8){ $('#rs-err').textContent='סיסמה חדשה — לפחות 8 תווים'; return; }
+  const btn=$('#lg-reset button[type=submit]'); btn.disabled=true; $('#rs-err').textContent='';
+  try{
+    const r=await rpc('verify_reset_code',{p_email:'orel@sol-ix.ai',p_code:code,p_new_password:pw});
+    if(!r || !r.ok){ const m={wrong:'קוד שגוי',expired:'הקוד פג תוקף — שלחו קוד חדש',locked:'יותר מדי ניסיונות — נסו מאוחר יותר',weak:'סיסמה חלשה מדי'}; $('#rs-err').textContent=m[r&&r.error]||'הקוד שגוי או פג תוקף'; btn.disabled=false; return; }
+    await login('orel@sol-ix.ai', pw); await Store.load(); showApp(); render();
+  }catch(err){ $('#rs-err').textContent='שגיאה — נסו שוב'; btn.disabled=false; }
+}
+
 async function boot(){
   injectLogin();
-  if(_token){ try{ await Store.load(); showApp(); render(); return; }catch(e){ _token=null; sessionStorage.removeItem('hc_token'); } }
-  showLogin();
+  const s=loadSess();
+  if(s && (Date.now()-s.last) <= MONTH_MS){
+    _token=s.access; touchSess();
+    try{ await Store.load(); showApp(); render(); return; }
+    catch(e){ if(await refreshToken()){ try{ await Store.load(); showApp(); render(); return; }catch(e2){} } }
+  }
+  clearSess(); showLogin();
 }
 boot();
 </script>
