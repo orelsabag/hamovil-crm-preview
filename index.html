@@ -240,6 +240,25 @@
   .wa-bubble .txt{font-size:13.5px;color:#111;line-height:1.5;white-space:pre-line}
   .wa-bubble .tm{font-size:10.5px;color:#8a8a8a;text-align:left;margin-top:4px}
 
+  /* single-recipient search */
+  .rec-drop{position:absolute;top:calc(100% + 4px);inset-inline:0;background:#fff;border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow-lg);z-index:20;display:none;max-height:270px;overflow-y:auto}
+  .rec-drop.show{display:block}
+  .rec-item{display:flex;align-items:center;gap:10px;padding:10px 13px;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--line-2)}
+  .rec-item:last-child{border-bottom:none}
+  .rec-item:hover{background:var(--navy-soft)}
+  .rec-item .av{width:30px;height:30px;border-radius:8px;font-family:'Heebo';font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+  .rec-item .nm{font-weight:700;font-size:14px}
+  .rec-item .ph{font-size:12px;color:var(--muted);direction:ltr;text-align:right}
+  .rec-item.raw .ic{width:30px;height:30px;border-radius:8px;background:var(--ok-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .rec-item.raw .ic svg{width:16px;height:16px;fill:#25D366}
+  .rec-chip{display:none;align-items:center;gap:10px;background:var(--navy-soft);border:1px solid var(--navy);border-radius:11px;padding:9px 13px;margin-top:8px}
+  .rec-chip.show{display:flex}
+  .rec-chip .av{width:32px;height:32px;border-radius:9px;font-family:'Heebo';font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+  .rec-chip .nm{font-weight:700;font-size:14.5px}
+  .rec-chip .ph{font-size:12.5px;color:var(--muted);direction:ltr;text-align:right}
+  .rec-chip .x{margin-inline-start:auto;cursor:pointer;color:var(--muted);font-weight:800;font-size:18px;line-height:1;padding:2px 4px}
+  .rec-chip .x:hover{color:var(--red)}
+
   /* ============ SETTINGS ============ */
   .set-row{display:flex;align-items:center;gap:16px;padding:18px 0;border-bottom:1px solid var(--line-2)}
   .set-row:last-child{border-bottom:none}
@@ -552,16 +571,25 @@ function renderSend(){
     <div class="grid-2">
       <div class="card panel">
         <div class="panel-h"><h3>שליחת הודעה לחברי המועדון</h3></div>
-        <div class="field"><label>נמענים</label><select class="selct" style="width:100%" id="snd-aud">
-          <option>כל חברי המועדון (${stats().total})</option>
-          <option>לקוחות פרטיים בלבד (${stats().priv})</option>
-          <option>אנשי מקצוע / קבלנים (${stats().pro})</option>
-          <option>חברים עם יום הולדת החודש (${stats().bdays})</option>
-        </select></div>
+        <div class="field"><label>נמענים</label>
+          <select class="selct" style="width:100%" id="snd-aud" onchange="onAudChange()">
+            <option value="all">כל חברי המועדון (${stats().total})</option>
+            <option value="private">לקוחות פרטיים בלבד (${stats().priv})</option>
+            <option value="pro">אנשי מקצוע / קבלנים (${stats().pro})</option>
+            <option value="bday">חברים עם יום הולדת החודש (${stats().bdays})</option>
+            <option value="single">🔍 נמען יחיד — חיפוש או טלפון</option>
+          </select>
+          <div id="single-box" style="display:none;margin-top:10px;position:relative">
+            <input class="selct" style="width:100%" id="single-inp" placeholder="הקלד שם חבר או מספר טלפון…" autocomplete="off" oninput="searchRecipient()">
+            <div id="single-res" class="rec-drop"></div>
+            <div id="single-chip"></div>
+          </div>
+        </div>
         <div class="field"><label>תבנית הודעה</label><select class="selct" style="width:100%" id="snd-tpl" onchange="updatePreview()">
           <option value="welcome">🎉 ברוכים הבאים למועדון</option>
           <option value="bday">🎂 ברכת יום הולדת</option>
           <option value="deal">🔒 מבצע סודי לחברי מועדון</option>
+          <option value="review">⭐ תודה על הקנייה + ביקורת גוגל</option>
         </select></div>
         <div class="field"><label>טקסט ההודעה</label><textarea id="snd-txt" oninput="updatePreview()"></textarea></div>
         <button class="btn btn-red" style="width:100%;justify-content:center" onclick="doSend()">
@@ -579,19 +607,62 @@ function renderSend(){
     </div>
   </div>`;
 }
+const REVIEW_LINK='https://search.google.com/local/writereview?placeid=ChIJaRg9uZUzHBUR_FX2pn-wLjk';
 const TEMPLATES={
   welcome:{img:'assets/welcome.png',txt:'שלום {שם}! 🎉\nברוכים הבאים למועדון הלקוחות של המוביל סנטר.\nמעכשיו — הנחות על כל החנות, מתנת יום הולדת וגישה לקבוצת המבצעים הסודית.\nכרטיס החבר שלך מצורף 👆'},
   bday:{img:'assets/bday.png',txt:'יום הולדת שמח {שם}! 🎂\nכל צוות המוביל סנטר מאחל לך שנה מדהימה.\nמתנת יום ההולדת שלך מחכה בחנות — בוא לקחת אותה 🎁'},
   deal:{img:'assets/card.png',txt:'🔒 בלעדי לחברי המועדון\n{שם}, הגיע מבצע חדש שלא מתפרסם בשום מקום.\nרק לחברי מועדון, לזמן מוגבל 👀'},
+  review:{img:null,txt:'תודה שקנית אצלנו, {שם}! 🙏\nהיה לנו כיף לשרת אותך. נשמח מאוד אם תשאיר לנו ביקורת קצרה בגוגל — זה עוזר לנו המון:\n'+REVIEW_LINK},
 };
 function updatePreview(){
   const tpl=$('#snd-tpl').value, t=TEMPLATES[tpl];
   const ta=$('#snd-txt');
   if(ta&&(!ta.value||ta.dataset.tpl!==tpl)){ta.value=t.txt;ta.dataset.tpl=tpl;}
-  $('#pv-txt').textContent=(ta?ta.value:t.txt).replace('{שם}','אחמד');
-  $('#pv-img').src=t.img;
+  $('#pv-txt').textContent=(ta?ta.value:t.txt).replace('{שם}',recipientName()||'אחמד');
+  const img=$('#pv-img');
+  if(t.img){img.src=t.img;img.style.display='';}else{img.style.display='none';}
 }
-function doSend(){const aud=$('#snd-aud').value;toast('נשלח בהצלחה ל'+aud.split('(')[0].trim()+' ✓');}
+/* --- single recipient --- */
+let chosenRecip=null, _recResults=[];
+function recipientName(){return (chosenRecip&&chosenRecip.name!=='__raw__')?chosenRecip.name.split(' ')[0]:'';}
+function onAudChange(){
+  const single=$('#snd-aud').value==='single';
+  $('#single-box').style.display=single?'block':'none';
+  if(!single)clearRecipient();
+  updatePreview();
+}
+function searchRecipient(){
+  const q=$('#single-inp').value.trim(), drop=$('#single-res');
+  if(!q){drop.classList.remove('show');drop.innerHTML='';_recResults=[];return;}
+  const digits=q.replace(/\D/g,'');
+  _recResults=Store.all().filter(m=>m.name.includes(q)||(digits.length>=3&&m.phone.includes(digits))).slice(0,6).map(m=>({name:m.name,phone:m.phone}));
+  let html=_recResults.map((m,i)=>`<div class="rec-item" onclick="pickRecipient(${i})"><div class="av" style="background:${avColor(m.name)}">${initials(m.name)}</div><div><div class="nm">${m.name}</div><div class="ph">${m.phone}</div></div></div>`).join('');
+  if(/^0(5\d|[23489])\d{6,7}$/.test(digits)){
+    _recResults.push({name:'__raw__',phone:digits});
+    html+=`<div class="rec-item raw" onclick="pickRecipient(${_recResults.length-1})"><div class="ic"><svg viewBox="0 0 32 32"><path d="M16 3C9.4 3 4 8.4 4 15c0 2.1.6 4.1 1.6 5.9L4 29l8.3-1.6A12 12 0 1 0 16 3z"/></svg></div><div><div class="nm">שלח למספר ${digits}</div><div class="ph">מספר שאינו ברשימה</div></div></div>`;
+  }
+  drop.innerHTML=html||'<div class="rec-item" style="cursor:default;color:var(--faint)">לא נמצאו תוצאות</div>';
+  drop.classList.add('show');
+}
+function pickRecipient(i){
+  const r=_recResults[i]; if(!r)return;
+  chosenRecip=r; $('#single-res').classList.remove('show'); $('#single-inp').value='';
+  const raw=r.name==='__raw__', chip=$('#single-chip');
+  chip.className='rec-chip show';
+  chip.innerHTML=`<div class="av" style="background:${raw?'#25D366':avColor(r.name)}">${raw?'☎':initials(r.name)}</div><div><div class="nm">${raw?'מספר חדש':r.name}</div><div class="ph">${r.phone}</div></div><span class="x" onclick="clearRecipient()">✕</span>`;
+  updatePreview();
+}
+function clearRecipient(){chosenRecip=null;const c=$('#single-chip');if(c)c.classList.remove('show');const inp=$('#single-inp');if(inp)inp.value='';const d=$('#single-res');if(d)d.classList.remove('show');}
+function doSend(){
+  const aud=$('#snd-aud').value;
+  if(aud==='single'){
+    if(!chosenRecip){toast('בחר נמען מהרשימה או הקלד מספר');return;}
+    toast('הודעה נשלחה ל'+(chosenRecip.name==='__raw__'?chosenRecip.phone:chosenRecip.name.split(' ')[0])+' ✓');
+    return;
+  }
+  const labels={all:'כל חברי המועדון',private:'לקוחות פרטיים',pro:'אנשי מקצוע / קבלנים',bday:'בעלי יום הולדת החודש'};
+  toast('נשלח בהצלחה ל'+(labels[aud]||'')+' ✓');
+}
 
 function renderSettings(){
   return `<div class="view"><div class="card panel" style="max-width:640px">
@@ -631,14 +702,16 @@ function openMember(id){
         <div class="tl-i pending"><div class="tt">ברכת יום הולדת</div><div class="td">${soon?'תישלח ב-'+bDay(m.birthday)+' '+MONTHS[bMonth(m.birthday)]:'מתוזמנת לחודש יום ההולדת'}</div></div>
       </div>
     </div>
-    <div class="dr-foot">
-      <button class="btn btn-red" onclick="quickSend(${m.id})"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שלח הודעה</button>
-      <button class="btn btn-ghost" onclick="toggleOut(${m.id})">${m.status==='active'?'הסר מדיוור':'החזר לפעיל'}</button>
+    <div class="dr-foot" style="flex-wrap:wrap">
+      <button class="btn btn-red" onclick="quickReview(${m.id})" style="flex:1 1 100%"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 .6-5.3 4.6L18.3 21 12 17.3 5.7 21l1.6-7.3L2 9.1l7-.6L12 2z"/></svg>שלח תודה + בקשת ביקורת בגוגל</button>
+      <button class="btn btn-ghost" onclick="quickSend(${m.id})" style="flex:1"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>הודעה</button>
+      <button class="btn btn-ghost" onclick="toggleOut(${m.id})" style="flex:1">${m.status==='active'?'הסר מדיוור':'החזר'}</button>
     </div>`;
   $('#scrim').classList.add('show');$('#drawer').classList.add('show');
 }
 function closeDrawer(){$('#scrim').classList.remove('show');$('#drawer').classList.remove('show');}
 function quickSend(id){const m=Store.all().find(x=>x.id===id);toast('הודעה נשלחה ל'+m.name.split(' ')[0]+' ✓');}
+function quickReview(id){const m=Store.all().find(x=>x.id===id);toast('תודה + בקשת ביקורת נשלחה ל'+m.name.split(' ')[0]+' ✓');}
 function toggleOut(id){const m=Store.all().find(x=>x.id===id);const ns=m.status==='active'?'opted_out':'active';Store.update(id,{status:ns});toast(ns==='active'?'הוחזר לדיוור':'הוסר מדיוור');closeDrawer();render();}
 
 /* ===== add modal ===== */
