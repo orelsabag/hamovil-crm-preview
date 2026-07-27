@@ -372,7 +372,7 @@
    ===================================================================== */
 const AV_COLORS = ['#1B3A6B','#DC2626','#2f5493','#b91c1c','#0f2f5e','#c53030'];
 const MONTHS = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
-const now = new Date('2026-07-27');            // ponytail: מקובע לפרוטוטייפ; ב-Supabase = new Date()
+const now = new Date();  // זמן אמת — מחובר ל-Supabase של הלקוח
 const curMonth = now.getMonth();
 
 function seed(){
@@ -410,13 +410,42 @@ function seed(){
       bday_sent_year:null};
   });
 }
+/* ===== Supabase של המוביל סנטר (על שם הלקוח) — RLS: רק orel@sol-ix.ai ===== */
+const SB_URL='https://paaabtfmaagqifezvnxo.supabase.co';
+const SB_ANON='sb_publishable_0vi4Csf3X4mRKBTxZ3IuNA_RwSLHy3q';   // client-side key; RLS מגן על הנתונים
+let _cache=[], _token=sessionStorage.getItem('hc_token')||null;
+
+async function sbFetch(path, opts={}){
+  const h=Object.assign({'apikey':SB_ANON,'Authorization':'Bearer '+(_token||SB_ANON),'Content-Type':'application/json'}, opts.headers||{});
+  return fetch(SB_URL+path, {...opts, headers:h});
+}
+async function login(email, password){
+  const res=await fetch(SB_URL+'/auth/v1/token?grant_type=password',{
+    method:'POST', headers:{'apikey':SB_ANON,'Content-Type':'application/json'},
+    body:JSON.stringify({email:email.trim(), password})});
+  if(!res.ok) throw new Error('auth');
+  const j=await res.json(); _token=j.access_token; sessionStorage.setItem('hc_token',_token); return j;
+}
+function logout(){ _token=null; sessionStorage.removeItem('hc_token'); location.reload(); }
+
+const toLocal=p=>(p&&p.indexOf('+972')===0)?'0'+p.slice(4):(p||'');
+const mapRow=r=>({id:r.id,name:r.name,phone:toLocal(r.phone),birthday:r.birthday,
+  type:r.customer_type,joined:(r.created_at||'').slice(0,10),status:r.status,
+  welcome_sent:!!r.welcome_sent_at,group_sent:!!r.wa_group_invited,bday_sent_year:r.birthday_sent_year});
+
 const Store = {
-  _k:'hamovil_crm_members_v1',
-  load(){ try{const s=localStorage.getItem(this._k); if(s)return JSON.parse(s);}catch(e){} const d=seed(); this.save(d); return d; },
-  save(d){ localStorage.setItem(this._k, JSON.stringify(d)); },
-  all(){ return this.load(); },
-  add(m){ const d=this.load(); m.id=Math.max(0,...d.map(x=>x.id))+1; d.unshift(m); this.save(d); return m; },
-  update(id,patch){ const d=this.load(); const i=d.findIndex(x=>x.id===id); if(i>-1){d[i]={...d[i],...patch}; this.save(d);} return d[i]; },
+  async load(){ const res=await sbFetch('/rest/v1/members?select=*&order=created_at.desc');
+    if(!res.ok) throw new Error('load '+res.status); _cache=(await res.json()).map(mapRow); return _cache; },
+  all(){ return _cache; },
+  async add(m){ const res=await sbFetch('/rest/v1/rpc/join_member',{method:'POST',
+      body:JSON.stringify({p_name:m.name,p_phone:m.phone,p_birthday:m.birthday||null,
+        p_customer_type:m.type||'private',p_consent:true,p_source:'admin'})});
+    if(!res.ok) throw new Error('add '+res.status); await this.load(); return true; },
+  async update(id,patch){ const col={status:'status',type:'customer_type',group_sent:'wa_group_invited',bday_sent_year:'birthday_sent_year',name:'name'};
+    const body={}; for(const k in patch){ if(col[k]) body[col[k]]=patch[k]; }
+    const res=await sbFetch('/rest/v1/members?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(body)});
+    if(!res.ok) throw new Error('update '+res.status);
+    const i=_cache.findIndex(x=>x.id===id); if(i>-1)_cache[i]={..._cache[i],...patch}; return _cache[i]; },
 };
 
 /* ===== helpers ===== */
@@ -425,8 +454,8 @@ const initials=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('');
 const avColor=n=>AV_COLORS[[...n].reduce((a,c)=>a+c.charCodeAt(0),0)%AV_COLORS.length];
 const fmtDate=s=>{const d=new Date(s);return d.getDate()+' ב'+['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'][d.getMonth()];};
 const bMonth=s=>new Date(s).getMonth(), bDay=s=>new Date(s).getDate();
-const isBdayThisMonth=m=>bMonth(m.birthday)===curMonth;
-const age=s=>{const b=new Date(s);let a=now.getFullYear()-b.getFullYear();if(now.getMonth()<b.getMonth()||(now.getMonth()===b.getMonth()&&now.getDate()<b.getDate()))a--;return a;};
+const isBdayThisMonth=m=>!!m.birthday&&bMonth(m.birthday)===curMonth;
+const age=s=>{if(!s)return'';const b=new Date(s);let a=now.getFullYear()-b.getFullYear();if(now.getMonth()<b.getMonth()||(now.getMonth()===b.getMonth()&&now.getDate()<b.getDate()))a--;return a;};
 
 let state={view:'overview',q:'',fType:'all',fMonth:'all'};
 
@@ -492,7 +521,7 @@ function renderOverview(){
       <div class="card panel">
         <div class="panel-h"><h3>ימי הולדת החודש 🎁</h3><span class="link">${bdayList.length} חברים</span></div>
         ${bdayList.length?bdayList.slice(0,6).map(m=>`
-          <div class="bday" onclick="openMember(${m.id})">
+          <div class="bday" onclick="openMember('${m.id}')">
             <div class="av" style="background:${avColor(m.name)}22;color:${avColor(m.name)}">${initials(m.name)}</div>
             <div><div class="nm">${m.name}</div><div class="dt">בן ${age(m.birthday)+1} · ${m.type==='pro'?'קבלן':'פרטי'}</div></div>
             <div class="day"><div class="d">${bDay(m.birthday)}</div><div class="m">${MONTHS[bMonth(m.birthday)]}</div></div>
@@ -521,7 +550,7 @@ function statCard(clr,ic,lbl,val,delta,dir){
 }
 function memberCardRow(m){
   const soon=isBdayThisMonth(m)&&bDay(m.birthday)>=now.getDate();
-  return `<div class="m-card card" onclick="openMember(${m.id})">
+  return `<div class="m-card card" onclick="openMember('${m.id}')">
     <div class="m-name"><div class="av" style="background:${avColor(m.name)}">${initials(m.name)}</div></div>
     <div class="info"><div class="top"><span class="nm">${m.name}</span>${m.type==='pro'?'<span class="tag pro">קבלן</span>':''}</div>
       <div class="meta"><span class="phone">${m.phone}</span><span>הצטרף ${fmtDate(m.joined)}</span></div></div>
@@ -536,11 +565,11 @@ function renderMembers(){
   if(state.fMonth!=='all')d=d.filter(m=>bMonth(m.birthday)===+state.fMonth);
   const rows=d.map(m=>{
     const soon=isBdayThisMonth(m);
-    return `<tr onclick="openMember(${m.id})">
+    return `<tr onclick="openMember('${m.id}')">
       <td><div class="m-name"><div class="av" style="background:${avColor(m.name)}">${initials(m.name)}</div><span class="nm">${m.name}</span></div></td>
       <td class="phone">${m.phone}</td>
       <td><span class="tag ${m.type==='pro'?'pro':'priv'}">${m.type==='pro'?'קבלן':'פרטי'}</span></td>
-      <td class="bd-cell ${soon?'soon':''}">${bDay(m.birthday)} ${MONTHS[bMonth(m.birthday)]}${soon?'<span class="s">החודש</span>':''}</td>
+      <td class="bd-cell ${soon?'soon':''}">${m.birthday?bDay(m.birthday)+' '+MONTHS[bMonth(m.birthday)]:'—'}${soon?'<span class="s">החודש</span>':''}</td>
       <td style="color:var(--muted);font-weight:600">${fmtDate(m.joined)}</td>
       <td>${m.status==='active'?'<span class="tag act">פעיל</span>':'<span class="tag out">הוסר</span>'}</td>
     </tr>`;}).join('');
@@ -676,7 +705,9 @@ function renderSettings(){
     <div class="set-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
       <div><div class="k">קבוצת מבצעים סודית</div><div class="d">לינק הצטרפות נשלח אוטומטית לנרשמים</div></div><span class="badge-soon">בהקמה</span></div>
     <div class="set-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
-      <div><div class="k">מסד נתונים</div><div class="d">גרסת פיתוח — יועבר ל-Supabase על שם הלקוח לאחר אישור</div></div><span class="badge-soon">פרוטוטייפ</span></div>
+      <div><div class="k">מסד נתונים</div><div class="d">מחובר ל-Supabase של המוביל סנטר · נתונים חיים</div></div><span class="tag act">מחובר</span></div>
+    <div class="set-row" style="cursor:pointer" onclick="logout()"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></div>
+      <div><div class="k">התנתקות</div><div class="d">יציאה מהמערכת · orel@sol-ix.ai</div></div><svg width="18" height="18" fill="none" stroke="#DC2626" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div>
   </div></div>`;
 }
 
@@ -693,7 +724,7 @@ function openMember(id){
     </div>
     <div class="dr-body">
       <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M22 16.9V20a2 2 0 0 1-2.2 2A19 19 0 0 1 2 4.2 2 2 0 0 1 4 2h3.1a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 12a16 16 0 0 0 4 4l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/></svg></div><div><div class="k">טלפון</div><div class="v ltr">${m.phone}</div></div></div>
-      <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13"/></svg></div><div><div class="k">יום הולדת</div><div class="v">${fmtDate(m.birthday)} · בן ${age(m.birthday)}${soon?' 🎂':''}</div></div></div>
+      <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13"/></svg></div><div><div class="k">יום הולדת</div><div class="v">${m.birthday?fmtDate(m.birthday)+' · בן '+age(m.birthday):'לא צוין'}${soon?' 🎂':''}</div></div></div>
       <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><div class="k">הצטרף למועדון</div><div class="v">${fmtDate(m.joined)}</div></div></div>
       <div class="dr-sec-t">היסטוריית הודעות</div>
       <div class="tl">
@@ -703,16 +734,16 @@ function openMember(id){
       </div>
     </div>
     <div class="dr-foot" style="flex-wrap:wrap">
-      <button class="btn btn-red" onclick="quickReview(${m.id})" style="flex:1 1 100%"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 .6-5.3 4.6L18.3 21 12 17.3 5.7 21l1.6-7.3L2 9.1l7-.6L12 2z"/></svg>שלח תודה + בקשת ביקורת בגוגל</button>
-      <button class="btn btn-ghost" onclick="quickSend(${m.id})" style="flex:1"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>הודעה</button>
-      <button class="btn btn-ghost" onclick="toggleOut(${m.id})" style="flex:1">${m.status==='active'?'הסר מדיוור':'החזר'}</button>
+      <button class="btn btn-red" onclick="quickReview('${m.id}')" style="flex:1 1 100%"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 .6-5.3 4.6L18.3 21 12 17.3 5.7 21l1.6-7.3L2 9.1l7-.6L12 2z"/></svg>שלח תודה + בקשת ביקורת בגוגל</button>
+      <button class="btn btn-ghost" onclick="quickSend('${m.id}')" style="flex:1"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>הודעה</button>
+      <button class="btn btn-ghost" onclick="toggleOut('${m.id}')" style="flex:1">${m.status==='active'?'הסר מדיוור':'החזר'}</button>
     </div>`;
   $('#scrim').classList.add('show');$('#drawer').classList.add('show');
 }
 function closeDrawer(){$('#scrim').classList.remove('show');$('#drawer').classList.remove('show');}
 function quickSend(id){const m=Store.all().find(x=>x.id===id);toast('הודעה נשלחה ל'+m.name.split(' ')[0]+' ✓');}
 function quickReview(id){const m=Store.all().find(x=>x.id===id);toast('תודה + בקשת ביקורת נשלחה ל'+m.name.split(' ')[0]+' ✓');}
-function toggleOut(id){const m=Store.all().find(x=>x.id===id);const ns=m.status==='active'?'opted_out':'active';Store.update(id,{status:ns});toast(ns==='active'?'הוחזר לדיוור':'הוסר מדיוור');closeDrawer();render();}
+async function toggleOut(id){const m=Store.all().find(x=>x.id===id);const ns=m.status==='active'?'opted_out':'active';try{await Store.update(id,{status:ns});}catch(e){toast('שגיאה בעדכון');return;}toast(ns==='active'?'הוחזר לדיוור':'הוסר מדיוור');closeDrawer();render();}
 
 /* ===== add modal ===== */
 function openAdd(){
@@ -728,20 +759,22 @@ function openAdd(){
         <span><input type="radio" id="a-pro" name="atype" value="pro"><label for="a-pro">איש מקצוע / קבלן</label></span>
       </div></div>
       <div class="mb-foot">
-        <button class="btn btn-red" onclick="saveMember()">הוסף ושלח ברוכים הבאים</button>
+        <button class="btn btn-red" onclick="saveMember()">הוסף חבר</button>
         <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
       </div>
     </div>`;
   $('#modal').classList.add('show');
 }
 function closeModal(){$('#modal').classList.remove('show');}
-function saveMember(){
+async function saveMember(){
   const name=$('#a-name').value.trim(), phone=$('#a-phone').value.trim();
   if(!name){toast('נא להזין שם');return;}
   if(!/^0(5\d|[23489])\d{7}$/.test(phone.replace(/\D/g,''))){toast('מספר טלפון לא תקין');return;}
   const type=document.querySelector('input[name=atype]:checked').value;
-  Store.add({name,phone,birthday:$('#a-bday').value||'1990-01-01',type,joined:now.toISOString().slice(0,10),status:'active',welcome_sent:true,group_sent:false,bday_sent_year:null});
-  closeModal();render();toast('נוסף '+name.split(' ')[0]+' + נשלחה ברוכים הבאים ✓');
+  const btn=document.querySelector('#modal-box .btn-red'); if(btn){btn.disabled=true;btn.textContent='שומר…';}
+  try{ await Store.add({name,phone,birthday:$('#a-bday').value||null,type}); }
+  catch(e){ toast('שגיאה בשמירה — נסו שוב'); if(btn){btn.disabled=false;btn.textContent='הוסף חבר';} return; }
+  closeModal();render();toast('נוסף '+name.split(' ')[0]+' ✓');
 }
 
 function exportCSV(){
@@ -771,7 +804,50 @@ function setFilter(k,val){state[k]=val;render();}
 $$('[data-view]').forEach(el=>el.addEventListener('click',()=>go(el.dataset.view)));
 $('#search').addEventListener('input',e=>{state.q=e.target.value;if(state.view!=='members'){state.view='members';}render();});
 
-render();
+/* ===== auth boot ===== */
+function injectLogin(){
+  const st=document.createElement('style');
+  st.textContent=`#login{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:radial-gradient(120% 120% at 82% 0%,#eaf1fc,#f5f8fc 58%,#fff);padding:20px}
+#login .lg-card{background:#fff;border:1px solid #e6ebf3;border-radius:22px;box-shadow:0 30px 70px rgba(21,35,59,.16);width:min(400px,94vw);padding:36px 30px;text-align:center}
+#login .lg-logo{height:50px;margin-bottom:8px}
+#login h1{font-size:20px;color:#1B3A6B;font-weight:800;margin:8px 0 2px}
+#login .lg-sub{color:#7b8aa3;font-size:13px;margin-bottom:22px}
+#login .lg-f{text-align:right;margin-bottom:12px}
+#login .lg-f label{display:block;font-size:12.5px;font-weight:700;color:#42546e;margin-bottom:5px}
+#login .lg-f input{width:100%;border:1.5px solid #e2e8f2;border-radius:12px;padding:12px 13px;font-size:15px;font-family:inherit;box-sizing:border-box;transition:border-color .15s}
+#login .lg-f input:focus{outline:none;border-color:#DC2626}
+#login .lg-btn{width:100%;background:#DC2626;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15.5px;font-weight:800;cursor:pointer;margin-top:6px;font-family:inherit;box-shadow:0 10px 22px rgba(220,38,38,.28)}
+#login .lg-btn:disabled{opacity:.6;cursor:default}
+#login .lg-err{color:#DC2626;font-size:13px;font-weight:600;min-height:18px;margin-top:10px}
+#login .lg-foot{color:#9aa7bd;font-size:11px;margin-top:14px;line-height:1.5}`;
+  document.head.appendChild(st);
+  const d=document.createElement('div'); d.id='login';
+  d.innerHTML=`<form class="lg-card" onsubmit="doLogin(event)">
+    <img class="lg-logo" src="assets/logo.png" alt="המוביל סנטר">
+    <h1>מערכת ניהול מועדון</h1><div class="lg-sub">המוביל סנטר · כניסת מנהל</div>
+    <div class="lg-f"><label>אימייל</label><input id="lg-email" type="email" autocomplete="username" placeholder="you@example.com" required></div>
+    <div class="lg-f"><label>סיסמה</label><input id="lg-pw" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+    <button class="lg-btn" id="lg-btn" type="submit">כניסה</button>
+    <div class="lg-err" id="lg-err"></div>
+    <div class="lg-foot">🔒 גישה מאובטחת · הנתונים ב-Supabase של המוביל סנטר</div>
+  </form>`;
+  document.body.appendChild(d);
+}
+function showLogin(){ $('#login').style.display='flex'; setTimeout(()=>{const e=$('#lg-email');if(e)e.focus();},50); }
+function showApp(){ const l=$('#login'); if(l) l.style.display='none'; }
+async function doLogin(e){
+  e.preventDefault();
+  const email=$('#lg-email').value, pw=$('#lg-pw').value, btn=$('#lg-btn');
+  btn.disabled=true; $('#lg-err').textContent='';
+  try{ await login(email,pw); await Store.load(); showApp(); render(); }
+  catch(err){ $('#lg-err').textContent='מייל או סיסמה שגויים'; btn.disabled=false; }
+}
+async function boot(){
+  injectLogin();
+  if(_token){ try{ await Store.load(); showApp(); render(); return; }catch(e){ _token=null; sessionStorage.removeItem('hc_token'); } }
+  showLogin();
+}
+boot();
 </script>
 </body>
 </html>
