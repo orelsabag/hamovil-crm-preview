@@ -868,8 +868,10 @@ function injectLogin(){
   </form>
   <form class="lg-card" id="lg-reset" style="display:none" onsubmit="doReset(event)">
     <img class="lg-logo" src="assets/logo.png" alt="המוביל סנטר">
-    <h1>איפוס סיסמה</h1><div class="lg-sub" id="rs-sub">נשלח קוד בן 5 ספרות למייל המנהל</div>
-    <div id="rs-step1"><button type="button" class="lg-btn" id="rs-send" onclick="sendResetCode()">שליחת קוד למייל</button></div>
+    <h1>איפוס סיסמה</h1><div class="lg-sub" id="rs-sub">הזן את המייל שלך — יישלח אליו קוד בן 5 ספרות</div>
+    <div id="rs-step1">
+      <div class="lg-f"><label>אימייל</label><input id="rs-email" type="email" autocomplete="username" placeholder="you@example.com"></div>
+      <button type="button" class="lg-btn" id="rs-send" onclick="sendResetCode()">שליחת קוד</button></div>
     <div id="rs-step2" style="display:none">
       <div class="lg-f"><label>קוד בן 5 ספרות</label><input id="rs-code" inputmode="numeric" maxlength="5" placeholder="•••••" style="text-align:center;letter-spacing:8px;font-size:22px"></div>
       <div class="lg-f"><label>סיסמה חדשה</label><input id="rs-pw" type="password" autocomplete="new-password" placeholder="לפחות 8 תווים"></div>
@@ -890,14 +892,18 @@ async function doLogin(e){
   catch(err){ $('#lg-err').textContent='מייל או סיסמה שגויים'; btn.disabled=false; }
 }
 /* ===== שכחתי סיסמה (קוד 5 ספרות → מייל → איפוס) ===== */
-function showReset(){ $('#lg-login').style.display='none'; $('#lg-reset').style.display='block'; $('#rs-err').textContent=''; }
+let _resetEmail='';
+function showReset(){ $('#lg-login').style.display='none'; $('#lg-reset').style.display='block'; $('#rs-err').textContent=''; const le=$('#lg-email'),re=$('#rs-email'); if(re&&le&&le.value)re.value=le.value; setTimeout(()=>{if(re)re.focus();},50); }
 function backToLogin(){ $('#lg-reset').style.display='none'; $('#lg-login').style.display='block';
   $('#rs-step1').style.display='block'; $('#rs-step2').style.display='none'; $('#rs-err').textContent=''; }
 async function sendResetCode(){
+  const email=($('#rs-email').value||'').trim();
+  if(!email){ $('#rs-err').textContent='הזן אימייל'; return; }
+  _resetEmail=email;
   const b=$('#rs-send'); b.disabled=true; b.textContent='שולח…'; $('#rs-err').textContent='';
-  try{ await rpc('request_reset_code',{p_email:'orel@sol-ix.ai'}); }catch(e){}
+  try{ await rpc('request_reset_code',{p_email:email}); }catch(e){}
   $('#rs-step1').style.display='none'; $('#rs-step2').style.display='block';
-  $('#rs-sub').textContent='קוד נשלח ל-orelsabag@gmail.com · הזן כאן'; setTimeout(()=>{const c=$('#rs-code');if(c)c.focus();},50);
+  $('#rs-sub').textContent='אם המייל מורשה — נשלח אליו קוד. הזן אותו כאן'; setTimeout(()=>{const c=$('#rs-code');if(c)c.focus();},50);
 }
 async function doReset(e){
   e.preventDefault();
@@ -906,9 +912,9 @@ async function doReset(e){
   if(pw.length<8){ $('#rs-err').textContent='סיסמה חדשה — לפחות 8 תווים'; return; }
   const btn=$('#lg-reset button[type=submit]'); btn.disabled=true; $('#rs-err').textContent='';
   try{
-    const r=await rpc('verify_reset_code',{p_email:'orel@sol-ix.ai',p_code:code,p_new_password:pw});
-    if(!r || !r.ok){ const m={wrong:'קוד שגוי',expired:'הקוד פג תוקף — שלחו קוד חדש',locked:'יותר מדי ניסיונות — נסו מאוחר יותר',weak:'סיסמה חלשה מדי'}; $('#rs-err').textContent=m[r&&r.error]||'הקוד שגוי או פג תוקף'; btn.disabled=false; return; }
-    await login('orel@sol-ix.ai', pw); await Store.load(); showApp(); render();
+    const r=await rpc('verify_reset_code',{p_email:_resetEmail,p_code:code,p_new_password:pw});
+    if(!r || !r.ok){ const m={wrong:'קוד שגוי',expired:'הקוד פג תוקף — שלחו קוד חדש',locked:'יותר מדי ניסיונות — נסו מאוחר יותר',weak:'סיסמה חלשה מדי',bad:'המייל אינו מורשה'}; $('#rs-err').textContent=m[r&&r.error]||'הקוד שגוי או פג תוקף'; btn.disabled=false; return; }
+    await login(_resetEmail, pw); await Store.load(); showApp(); render();
   }catch(err){ $('#rs-err').textContent='שגיאה — נסו שוב'; btn.disabled=false; }
 }
 
