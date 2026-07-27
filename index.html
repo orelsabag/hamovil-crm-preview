@@ -879,7 +879,7 @@ async function sendResetCode(){
   const b=$('#rs-send'); b.disabled=true; b.textContent='שולח…'; $('#rs-err').textContent='';
   try{ await rpc('request_reset_code',{p_email:'orel@sol-ix.ai'}); }catch(e){}
   $('#rs-step1').style.display='none'; $('#rs-step2').style.display='block';
-  $('#rs-sub').textContent='קוד נשלח למייל המנהל · הזן אותו כאן'; setTimeout(()=>{const c=$('#rs-code');if(c)c.focus();},50);
+  $('#rs-sub').textContent='קוד נשלח ל-orelsabag@gmail.com · הזן כאן'; setTimeout(()=>{const c=$('#rs-code');if(c)c.focus();},50);
 }
 async function doReset(e){
   e.preventDefault();
