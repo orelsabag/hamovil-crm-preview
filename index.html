@@ -446,7 +446,7 @@ function logout(){ clearSess(); location.reload(); }
 const toLocal=p=>(p&&p.indexOf('+972')===0)?'0'+p.slice(4):(p||'');
 const mapRow=r=>({id:r.id,name:r.name,phone:toLocal(r.phone),birthday:r.birthday,
   type:r.customer_type,joined:(r.created_at||'').slice(0,10),status:r.status,
-  welcome_sent:!!r.welcome_sent_at,group_sent:!!r.wa_group_invited,bday_sent_year:r.birthday_sent_year});
+  welcome_sent:!!r.welcome_sent_at,group_sent:!!r.wa_group_invited,bday_sent_year:r.birthday_sent_year,review_sent:!!r.review_sent_at});
 
 const Store = {
   async load(){ const res=await sbFetch('/rest/v1/members?select=*&order=created_at.desc');
@@ -753,9 +753,9 @@ function openMember(id){
       <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><div class="k">הצטרף למועדון</div><div class="v">${fmtDate(m.joined)}</div></div></div>
       <div class="dr-sec-t">היסטוריית הודעות</div>
       <div class="tl">
-        <div class="tl-i ${m.welcome_sent?'':'pending'}"><div class="tt">הודעת ברוכים הבאים ${m.welcome_sent?'✓':''}</div><div class="td">${m.welcome_sent?'נשלחה עם ההצטרפות':'ממתינה לשליחה'}</div></div>
-        <div class="tl-i ${m.group_sent?'':'pending'}"><div class="tt">לינק לקבוצה הסודית ${m.group_sent?'✓':''}</div><div class="td">${m.group_sent?'נשלח':'טרם נשלח'}</div></div>
+        <div class="tl-i ${m.welcome_sent?'':'pending'}"><div class="tt">ברוכים הבאים + לינק לקבוצה ${m.welcome_sent?'✓':''}</div><div class="td">${m.welcome_sent?'נשלחה עם ההצטרפות':'ממתינה לשליחה'}</div></div>
         <div class="tl-i pending"><div class="tt">ברכת יום הולדת</div><div class="td">${soon?'תישלח ב-'+bDay(m.birthday)+' '+MONTHS[bMonth(m.birthday)]:'מתוזמנת לחודש יום ההולדת'}</div></div>
+        <div class="tl-i ${m.review_sent?'':'pending'}"><div class="tt">תודה על הקנייה + ביקורת ${m.review_sent?'✓':''}</div><div class="td">${m.review_sent?'נשלחה':'נשלח בלחיצה אחרי קנייה'}</div></div>
       </div>
     </div>
     <div class="dr-foot" style="flex-wrap:wrap">
@@ -775,7 +775,7 @@ async function enqueueOne(phone,name,kind,tpl){
   if(!res.ok) throw new Error('enqueue '+res.status);
 }
 async function quickSend(id){const m=Store.all().find(x=>x.id===id);try{await enqueueOne(m.phone,m.name,'welcome',TEMPLATES.welcome);toast('ברוכים הבאים יישלח ל'+m.name.split(' ')[0]+' ✓');}catch(e){toast('שגיאה בשליחה');}}
-async function quickReview(id){const m=Store.all().find(x=>x.id===id);try{await enqueueOne(m.phone,m.name,'review',TEMPLATES.review);toast('תודה + ביקורת (עם תמונה) יישלח ל'+m.name.split(' ')[0]+' ✓');}catch(e){toast('שגיאה בשליחה');}}
+async function quickReview(id){const m=Store.all().find(x=>x.id===id);try{await enqueueOne(m.phone,m.name,'review',TEMPLATES.review);await sbFetch('/rest/v1/members?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({review_sent_at:'now()'})});m.review_sent=true;openMember(id);toast('תודה + ביקורת (עם תמונה) יישלח ל'+m.name.split(' ')[0]+' ✓');}catch(e){toast('שגיאה בשליחה');}}
 async function toggleOut(id){const m=Store.all().find(x=>x.id===id);const ns=m.status==='active'?'opted_out':'active';try{await Store.update(id,{status:ns});}catch(e){toast('שגיאה בעדכון');return;}toast(ns==='active'?'הוחזר לדיוור':'הוסר מדיוור');closeDrawer();render();}
 
 /* ===== add modal ===== */
