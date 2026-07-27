@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>מועדון המוביל סנטר — מערכת ניהול חברים</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&family=Assistant:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#DC2626; --red-dark:#b91c1c; --red-soft:#fef2f2;
+    --navy:#1B3A6B; --navy-2:#14294d; --navy-soft:#eef2f9;
+    --ink:#16233b; --muted:#697690; --faint:#9aa6bd;
+    --bg:#f6f8fc; --card:#ffffff; --line:#e9edf4; --line-2:#f1f4f9;
+    --ok:#12a150; --ok-soft:#e9f8f0; --warn:#e08a1e; --warn-soft:#fdf3e6;
+    --shadow:0 1px 2px rgba(21,35,59,.04), 0 8px 24px rgba(21,35,59,.06);
+    --shadow-lg:0 24px 60px rgba(21,35,59,.16);
+    --r:16px; --r-sm:11px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{font-family:'Assistant',system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.num{font-family:'Heebo',sans-serif}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select{font-family:inherit}
+  img{display:block;max-width:100%}
+  ::selection{background:var(--red);color:#fff}
+
+  /* ============ SHELL ============ */
+  .app{display:grid;grid-template-columns:256px 1fr;min-height:100vh}
+  /* --- sidebar --- */
+  .side{background:var(--card);border-inline-start:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:30}
+  .side-logo{padding:22px 22px 18px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:11px}
+  .side-logo img{height:40px;width:auto}
+  .side-logo .sub{font-family:'Heebo';font-size:11.5px;font-weight:700;letter-spacing:.02em;color:var(--red);background:var(--red-soft);padding:3px 9px;border-radius:20px}
+  nav{padding:14px 12px;display:flex;flex-direction:column;gap:3px;flex:1}
+  .nav-lbl{font-size:11px;font-weight:700;color:var(--faint);letter-spacing:.06em;padding:12px 14px 6px}
+  .nav-i{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;color:var(--muted);font-weight:600;font-size:15px;transition:background .15s,color .15s;position:relative}
+  .nav-i svg{width:20px;height:20px;stroke-width:1.9;flex-shrink:0}
+  .nav-i:hover{background:var(--navy-soft);color:var(--navy)}
+  .nav-i.on{background:var(--navy);color:#fff}
+  .nav-i.on svg{stroke:#fff}
+  .nav-i .badge{margin-inline-start:auto;background:var(--red);color:#fff;font-family:'Heebo';font-weight:800;font-size:11px;min-width:20px;height:20px;border-radius:20px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .nav-i.on .badge{background:#fff;color:var(--navy)}
+  .side-foot{padding:16px;border-top:1px solid var(--line-2)}
+  .wa-chip{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .wa-chip .dot{width:34px;height:34px;border-radius:9px;background:#25D366;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .wa-chip .dot svg{width:19px;height:19px;fill:#fff}
+  .wa-chip .t{font-size:11px;color:var(--muted);font-weight:600}
+  .wa-chip .n{font-family:'Heebo';font-weight:800;font-size:13.5px;color:var(--ink);direction:ltr;text-align:right}
+
+  /* --- main --- */
+  main{min-width:0;display:flex;flex-direction:column}
+  .topbar{position:sticky;top:0;background:var(--bg);border-bottom:1px solid transparent;z-index:20;padding:20px 30px 14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .topbar h1{font-size:26px;font-weight:800;letter-spacing:-.01em}
+  .topbar .crumb{color:var(--faint);font-weight:600;font-size:13px;margin-top:2px}
+  .top-actions{margin-inline-start:auto;display:flex;align-items:center;gap:10px}
+  .search{position:relative;display:flex;align-items:center}
+  .search svg{position:absolute;inset-inline-start:12px;width:18px;height:18px;stroke:var(--faint);stroke-width:2;pointer-events:none}
+  .search input{width:230px;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 38px 10px 14px;font-size:14.5px;color:var(--ink);transition:border-color .15s,box-shadow .15s}
+  .search input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 3px var(--navy-soft)}
+  .search input::placeholder{color:var(--faint)}
+  .content{padding:8px 30px 40px;flex:1}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:'Heebo';font-weight:700;font-size:14.5px;padding:11px 18px;border-radius:11px;transition:transform .12s,box-shadow .15s,background .15s;white-space:nowrap}
+  .btn svg{width:18px;height:18px;stroke-width:2.2}
+  .btn-red{background:var(--red);color:#fff;box-shadow:0 6px 16px rgba(220,38,38,.28)}
+  .btn-red:hover{background:var(--red-dark);transform:translateY(-1px)}
+  .btn-ghost{background:var(--card);color:var(--navy);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--navy);background:var(--navy-soft)}
+  .btn-nav{background:var(--navy);color:#fff}
+  .btn-nav:hover{background:var(--navy-2)}
+
+  /* ============ CARDS / MOTIF ============ */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+  /* brand diagonal corner (echoes the club card) */
+  .corner-motif{position:absolute;top:0;inset-inline-start:0;width:46px;height:46px;overflow:hidden;border-start-start-radius:var(--r);pointer-events:none}
+  .corner-motif::before{content:"";position:absolute;top:-24px;inset-inline-start:-24px;width:48px;height:48px;background:var(--navy);transform:rotate(45deg)}
+  .corner-motif::after{content:"";position:absolute;top:-6px;inset-inline-start:-30px;width:52px;height:7px;background:var(--red);transform:rotate(45deg)}
+
+  /* ============ OVERVIEW ============ */
+  .view{animation:fade .35s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .stat{position:relative;padding:22px 22px 20px;overflow:hidden}
+  .stat .ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+  .stat .ico svg{width:21px;height:21px;stroke-width:2}
+  .stat .ico.r{background:var(--red-soft)}.stat .ico.r svg{stroke:var(--red)}
+  .stat .ico.n{background:var(--navy-soft)}.stat .ico.n svg{stroke:var(--navy)}
+  .stat .ico.g{background:var(--ok-soft)}.stat .ico.g svg{stroke:var(--ok)}
+  .stat .ico.w{background:var(--warn-soft)}.stat .ico.w svg{stroke:var(--warn)}
+  .stat .val{font-family:'Heebo';font-size:34px;font-weight:800;line-height:1;letter-spacing:-.02em;color:var(--ink)}
+  .stat .lbl{font-size:13.5px;color:var(--muted);font-weight:600;margin-top:7px}
+  .stat .delta{font-size:12px;font-weight:700;margin-top:8px;display:inline-flex;align-items:center;gap:3px}
+  .stat .delta.up{color:var(--ok)} .stat .delta.flat{color:var(--faint)}
+
+  .grid-2{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-top:16px}
+  .panel{padding:22px}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .panel-h h3{font-size:17px;font-weight:800}
+  .panel-h .link{font-size:13px;font-weight:700;color:var(--red)}
+  /* chart */
+  .chart{display:flex;align-items:flex-end;gap:10px;height:170px;padding-top:8px}
+  .bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:9px;height:100%}
+  .bar-track{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center}
+  .bar{width:60%;max-width:34px;background:linear-gradient(var(--navy),#2f5493);border-radius:7px 7px 3px 3px;position:relative;transition:height .8s cubic-bezier(.2,.8,.2,1);min-height:4px}
+  .bar.hot{background:linear-gradient(var(--red),#f04d4d)}
+  .bar .cap{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-family:'Heebo';font-weight:800;font-size:12.5px;color:var(--ink)}
+  .bar-x{font-size:11.5px;color:var(--muted);font-weight:600}
+
+  /* birthday list */
+  .bday{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .bday:last-child{border-bottom:none}
+  .bday .av{width:38px;height:38px;border-radius:11px;background:var(--navy-soft);color:var(--navy);font-family:'Heebo';font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .bday .nm{font-weight:700;font-size:14.5px}
+  .bday .dt{font-size:12.5px;color:var(--muted)}
+  .bday .day{margin-inline-start:auto;text-align:center;background:var(--red-soft);border-radius:10px;padding:5px 10px;min-width:44px}
+  .bday .day .d{font-family:'Heebo';font-weight:800;font-size:16px;color:var(--red);line-height:1}
+  .bday .day .m{font-size:10px;color:var(--red);font-weight:700}
+  .empty{text-align:center;color:var(--faint);padding:28px 10px;font-size:14px}
+
+  /* ============ MEMBERS ============ */
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+  .seg button{padding:8px 14px;border-radius:8px;font-family:'Heebo';font-weight:700;font-size:13.5px;color:var(--muted);transition:.15s}
+  .seg button.on{background:var(--navy);color:#fff}
+  .selct{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:9px 12px;font-size:14px;font-weight:600;color:var(--ink)}
+  .selct:focus{outline:none;border-color:var(--navy)}
+  .count-chip{margin-inline-start:auto;font-size:13px;color:var(--muted);font-weight:600}
+
+  .tbl-card{overflow:hidden;padding:0}
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:right;font-family:'Heebo';font-weight:700;font-size:12.5px;color:var(--muted);padding:14px 18px;border-bottom:1px solid var(--line);background:var(--line-2);letter-spacing:.01em;white-space:nowrap}
+  tbody td{padding:14px 18px;border-bottom:1px solid var(--line-2);font-size:14.5px}
+  tbody tr{transition:background .12s;cursor:pointer}
+  tbody tr:hover{background:var(--navy-soft)}
+  tbody tr:last-child td{border-bottom:none}
+  .m-name{display:flex;align-items:center;gap:11px}
+  .m-name .av{width:36px;height:36px;border-radius:10px;font-family:'Heebo';font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+  .m-name .nm{font-weight:700}
+  .phone{direction:ltr;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-family:'Heebo';font-weight:700;font-size:12px;padding:4px 10px;border-radius:20px}
+  .tag.pro{background:var(--navy-soft);color:var(--navy)}
+  .tag.priv{background:var(--line-2);color:var(--muted)}
+  .tag.act{background:var(--ok-soft);color:var(--ok)}
+  .tag.out{background:var(--warn-soft);color:var(--warn)}
+  .bd-cell{font-weight:600;color:var(--ink)}
+  .bd-cell.soon{color:var(--red)}
+  .bd-cell .s{font-size:11px;color:var(--red);font-weight:700;margin-inline-start:4px}
+
+  /* member cards (mobile) */
+  .m-cards{display:none;flex-direction:column;gap:10px}
+  .m-card{padding:15px 16px;display:flex;align-items:center;gap:13px;cursor:pointer}
+  .m-card .info{min-width:0;flex:1}
+  .m-card .top{display:flex;align-items:center;gap:8px}
+  .m-card .nm{font-weight:800;font-family:'Heebo';font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .m-card .meta{font-size:13px;color:var(--muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+  .m-card .meta .phone{font-size:13px}
+  .m-card .chev{color:var(--faint);flex-shrink:0}
+
+  /* ============ DRAWER (member detail) ============ */
+  .scrim{position:fixed;inset:0;background:rgba(16,26,46,.45);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .25s,visibility .25s;z-index:50}
+  .scrim.show{opacity:1;visibility:visible;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:min(430px,92vw);background:var(--bg);z-index:51;transform:translateX(105%);transition:transform .32s cubic-bezier(.3,.9,.3,1);display:flex;flex-direction:column;box-shadow:var(--shadow-lg);will-change:transform}
+  .drawer.show{transform:translateX(0)}
+  .dr-head{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;padding:22px 22px 26px;position:relative;overflow:hidden}
+  .dr-head .rband{position:absolute;bottom:0;inset-inline-start:0;width:60%;height:6px;background:var(--red)}
+  .dr-close{position:absolute;top:16px;inset-inline-end:16px;width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center}
+  .dr-close svg{width:18px;height:18px;stroke:#fff;stroke-width:2.4}
+  .dr-close:hover{background:rgba(255,255,255,.25)}
+  .dr-av{width:62px;height:62px;border-radius:16px;font-family:'Heebo';font-weight:800;font-size:24px;display:flex;align-items:center;justify-content:center;color:#fff;border:2px solid rgba(255,255,255,.3);margin-bottom:14px}
+  .dr-name{font-size:22px;font-weight:800}
+  .dr-tags{display:flex;gap:7px;margin-top:10px}
+  .dr-tags .tag{background:rgba(255,255,255,.16);color:#fff}
+  .dr-body{padding:20px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:16px}
+  .dr-row{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+  .dr-row .ic{width:34px;height:34px;border-radius:9px;background:var(--navy-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .dr-row .ic svg{width:17px;height:17px;stroke:var(--navy);stroke-width:2}
+  .dr-row .k{font-size:12px;color:var(--muted);font-weight:600}
+  .dr-row .v{font-weight:700;font-size:15px;margin-top:1px}
+  .dr-row .v.ltr{direction:ltr;text-align:right}
+  .dr-sec-t{font-family:'Heebo';font-weight:800;font-size:14px;color:var(--muted);margin:4px 2px -4px}
+  .tl{position:relative;padding-inline-start:24px}
+  .tl::before{content:"";position:absolute;inset-inline-start:7px;top:6px;bottom:6px;width:2px;background:var(--line)}
+  .tl-i{position:relative;padding:7px 0}
+  .tl-i::before{content:"";position:absolute;inset-inline-start:-21px;top:11px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:2px solid var(--card)}
+  .tl-i.pending::before{background:var(--line);}
+  .tl-i .tt{font-weight:700;font-size:14px}
+  .tl-i .td{font-size:12.5px;color:var(--muted)}
+  .dr-foot{padding:16px 20px;border-top:1px solid var(--line);background:var(--card);display:flex;gap:10px}
+  .dr-foot .btn{flex:1;justify-content:center}
+
+  /* ============ MODAL (add / send) ============ */
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:18px}
+  .modal.show{display:flex}
+  .modal .box{background:var(--card);border-radius:20px;width:min(480px,100%);max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:pop .28s cubic-bezier(.3,.9,.3,1) both}
+  @keyframes pop{from{opacity:0;transform:scale(.95) translateY(10px)}to{opacity:1;transform:none}}
+  .mb-head{padding:22px 24px 6px;display:flex;align-items:flex-start;justify-content:space-between}
+  .mb-head h3{font-size:20px;font-weight:800}
+  .mb-head p{font-size:13.5px;color:var(--muted);margin-top:3px}
+  .mb-body{padding:14px 24px 22px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-family:'Heebo';font-weight:700;font-size:13px;margin-bottom:6px;color:var(--ink)}
+  .field input,.field select,.field textarea{width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:11px;padding:12px 14px;font-size:15px;color:var(--ink);transition:.15s}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--navy);background:#fff;box-shadow:0 0 0 3px var(--navy-soft)}
+  .field textarea{resize:vertical;min-height:70px;line-height:1.55}
+  .type-pick{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .type-pick input{position:absolute;opacity:0}
+  .type-pick label{text-align:center;padding:12px;border:1.5px solid var(--line);border-radius:11px;font-family:'Heebo';font-weight:700;cursor:pointer;transition:.15s;margin:0}
+  .type-pick input:checked+label{border-color:var(--navy);background:var(--navy);color:#fff}
+  .mb-foot{display:flex;gap:10px;margin-top:6px}
+  .mb-foot .btn{flex:1;justify-content:center}
+
+  /* send preview */
+  .wa-preview{background:#e5ddd5;border-radius:14px;padding:16px;position:relative;overflow:hidden}
+  .wa-preview::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(0,0,0,.03) 1px,transparent 1px);background-size:14px 14px}
+  .wa-bubble{position:relative;background:#fff;border-radius:12px;border-top-right-radius:3px;padding:12px 13px;box-shadow:0 1px 1px rgba(0,0,0,.13);max-width:88%;margin-inline-start:auto}
+  .wa-bubble img{border-radius:8px;margin-bottom:8px}
+  .wa-bubble .txt{font-size:13.5px;color:#111;line-height:1.5;white-space:pre-line}
+  .wa-bubble .tm{font-size:10.5px;color:#8a8a8a;text-align:left;margin-top:4px}
+
+  /* ============ SETTINGS ============ */
+  .set-row{display:flex;align-items:center;gap:16px;padding:18px 0;border-bottom:1px solid var(--line-2)}
+  .set-row:last-child{border-bottom:none}
+  .set-row .ic{width:44px;height:44px;border-radius:12px;background:var(--navy-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .set-row .ic svg{width:21px;height:21px;stroke:var(--navy);stroke-width:1.9}
+  .set-row .k{font-family:'Heebo';font-weight:800;font-size:15px}
+  .set-row .d{font-size:13px;color:var(--muted);margin-top:2px}
+  .set-row .val{margin-inline-start:auto;font-family:'Heebo';font-weight:800;color:var(--navy);direction:ltr}
+  .badge-soon{background:var(--warn-soft);color:var(--warn);font-family:'Heebo';font-weight:700;font-size:11px;padding:3px 9px;border-radius:20px;margin-inline-start:auto}
+
+  /* toast */
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:13px 20px;border-radius:12px;font-family:'Heebo';font-weight:700;font-size:14.5px;box-shadow:var(--shadow-lg);z-index:90;opacity:0;transition:.3s;display:flex;align-items:center;gap:9px;pointer-events:none}
+  .toast svg{width:19px;height:19px;stroke:#5df0a0;stroke-width:2.5}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+
+  /* mobile nav */
+  .mobitop{display:none}
+  .botnav{display:none}
+
+  /* ============ RESPONSIVE ============ */
+  @media(max-width:1080px){.stat-grid{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}}
+  @media(max-width:860px){
+    .app{grid-template-columns:1fr}
+    .side{display:none}
+    .mobitop{display:flex;align-items:center;gap:11px;padding:14px 18px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:25}
+    .mobitop img{height:34px}
+    .mobitop .sp{margin-inline-start:auto}
+    .topbar{position:static;padding:16px 18px 6px;backdrop-filter:none;background:none}
+    .topbar h1{font-size:22px}
+    .search input{width:100%}
+    .top-actions{width:100%;order:3}
+    .top-actions .search{flex:1}
+    .content{padding:8px 18px 92px}
+    table{display:none}
+    .m-cards{display:flex}
+    .botnav{display:flex;position:fixed;bottom:0;inset-inline:0;background:var(--card);border-top:1px solid var(--line);z-index:40;padding:8px 8px calc(8px + env(safe-area-inset-bottom));justify-content:space-around;box-shadow:0 -4px 20px rgba(21,35,59,.06)}
+    .botnav a{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font-family:'Heebo';font-weight:700;font-size:11px;padding:6px 14px;border-radius:12px;position:relative;flex:1}
+    .botnav a svg{width:23px;height:23px;stroke-width:2}
+    .botnav a.on{color:var(--red)}
+    .botnav a .bdot{position:absolute;top:3px;inset-inline-end:calc(50% - 18px);width:7px;height:7px;background:var(--red);border-radius:50%}
+    .stat .val{font-size:30px}
+  }
+  @media(max-width:420px){.stat-grid{grid-template-columns:1fr 1fr;gap:11px}.stat{padding:16px}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===== SIDEBAR (desktop) ===== -->
+  <aside class="side">
+    <div class="side-logo">
+      <img src="assets/logo.png" alt="המוביל סנטר">
+      <span class="sub">מועדון</span>
+    </div>
+    <nav id="nav">
+      <span class="nav-lbl">ניהול</span>
+      <a class="nav-i on" data-view="overview"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>סקירה כללית</a>
+      <a class="nav-i" data-view="members"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>חברי מועדון<span class="badge" id="nav-count">0</span></a>
+      <a class="nav-i" data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחת הודעות</a>
+      <span class="nav-lbl">מערכת</span>
+      <a class="nav-i" data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
+    </nav>
+    <div class="side-foot">
+      <div class="wa-chip">
+        <span class="dot"><svg viewBox="0 0 32 32"><path d="M16 3C9.4 3 4 8.4 4 15c0 2.1.6 4.1 1.6 5.9L4 29l8.3-1.6A12 12 0 1 0 16 3zm5.5 14.5c-.3.8-1.5 1.4-2 1.5-.5.1-1.2.1-1.9-.1-.4-.1-1-.3-1.8-.6-3.1-1.3-5.1-4.5-5.3-4.7-.1-.2-1.2-1.6-1.2-3s.7-2.1 1-2.4c.3-.3.6-.4.8-.4h.5c.2 0 .4 0 .6.5.2.6.8 2 .9 2.1.1.2.1.3 0 .5-.3.6-.6.7-.4 1 .8 1.3 1.5 1.8 2.7 2.4.2.1.4.1.5-.1.2-.2.6-.7.8-.9.2-.3.3-.2.6-.1.2.1 1.6.8 1.9.9.3.2.5.2.5.4.1.1.1.7-.2 1.5z"/></svg></span>
+        <div><div class="t">שולח הודעות</div><div class="n">050-2800006</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main>
+    <div class="mobitop">
+      <img src="assets/logo.png" alt="המוביל סנטר">
+      <span style="font-family:'Heebo';font-weight:800;font-size:15px;color:var(--navy)">מועדון</span>
+    </div>
+    <div class="topbar">
+      <div><h1 id="pg-title">סקירה כללית</h1><div class="crumb" id="pg-crumb">מבט על מצב המועדון</div></div>
+      <div class="top-actions">
+        <div class="search"><svg fill="none" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="search" placeholder="חיפוש חבר לפי שם או טלפון…"></div>
+        <button class="btn btn-red" onclick="openAdd()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="hide-sm">חבר חדש</span></button>
+      </div>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<!-- bottom nav (mobile) -->
+<div class="botnav" id="botnav">
+  <a class="on" data-view="overview"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>סקירה</a>
+  <a data-view="members"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>חברים</a>
+  <a data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחה</a>
+  <a data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
+</div>
+
+<!-- drawer -->
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer"></div>
+
+<!-- modal -->
+<div class="modal" id="modal"><div class="box" id="modal-box"></div></div>
+
+<!-- toast -->
+<div class="toast" id="toast"><svg fill="none" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span id="toast-t"></span></div>
+
+<script>
+/* =====================================================================
+   DATA LAYER — שכבת נתונים מבודדת.
+   כרגע: נתוני דוגמה + localStorage (פרוטוטייפ).
+   בהמשך: מוחלף בקריאות ל-Supabase של הלקוח (אותו ממשק בדיוק).
+   ===================================================================== */
+const AV_COLORS = ['#1B3A6B','#DC2626','#2f5493','#b91c1c','#0f2f5e','#c53030'];
+const MONTHS = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
+const now = new Date('2026-07-27');            // ponytail: מקובע לפרוטוטייפ; ב-Supabase = new Date()
+const curMonth = now.getMonth();
+
+function seed(){
+  const raw = [
+    ['אחמד עלי דיר',        '0502800011','1990-07-19','pro','2026-07-14','welcome'],
+    ['פאטמה חוסיין',        '0521234567','1995-07-03','private','2026-07-14','welcome'],
+    ['סאמי אבו ראס',        '0509988776','1982-11-22','pro','2026-07-15','welcome'],
+    ['נור אלדין קאסם',      '0543219876','1998-07-27','private','2026-07-16','welcome'],
+    ['ראמי חטיב',           '0526677889','1988-03-09','pro','2026-07-16','welcome,group'],
+    ['לינא עבד אלחלים',     '0505544332','2000-07-11','private','2026-07-17','welcome'],
+    ['ח׳אלד מנסור',         '0538812340','1979-05-30','pro','2026-07-18','welcome,group'],
+    ['הודא נאסר',           '0507766554','1993-12-14','private','2026-07-18','welcome'],
+    ['יוסף אבו סאלח',       '0524433221','1985-07-25','pro','2026-07-19','welcome'],
+    ['מרים דאהר',           '0559090807','1997-02-18','private','2026-07-20','welcome'],
+    ['כרים חמאדה',          '0501112233','1991-07-08','private','2026-07-20','welcome'],
+    ['סלים עותמאן',         '0546655443','1976-09-02','pro','2026-07-21','welcome,group'],
+    ['רנא אבו היג׳א',       '0528877665','1994-04-27','private','2026-07-22','welcome'],
+    ['מחמוד זידאן',         '0503344556','1983-07-16','pro','2026-07-22','welcome'],
+    ['אמל שאהין',           '0557788990','1999-06-05','private','2026-07-23','welcome'],
+    ['טארק בדראן',          '0521199884','1987-10-19','pro','2026-07-24','welcome,group'],
+    ['ליאן עסלי',           '0509900112','2001-07-30','private','2026-07-24','welcome'],
+    ['פאדי חורי',           '0534455667','1990-01-12','pro','2026-07-25','welcome'],
+    ['סוהא מרעי',           '0526600774','1996-08-21','private','2026-07-25','welcome'],
+    ['עדנאן סרחאן',         '0508811223','1981-07-06','pro','2026-07-26','welcome'],
+    ['דיאנא קעדאן',         '0543322110','1992-11-28','private','2026-07-26','welcome'],
+    ['מוסא אבו עמאר',       '0551234098','1978-07-13','pro','2026-07-26',''],
+    ['ריהאם טאהא',          '0505566778','1998-03-03','private','2026-07-27',''],
+    ['בילאל נמר',           '0529080706','1986-07-21','pro','2026-07-27',''],
+  ];
+  const JOINED=['2026-03-14','2026-03-22','2026-04-08','2026-04-17','2026-04-24','2026-05-06','2026-05-14','2026-05-21','2026-05-27','2026-06-04','2026-06-10','2026-06-15','2026-06-19','2026-06-24','2026-06-29','2026-07-05','2026-07-09','2026-07-14','2026-07-17','2026-07-20','2026-07-22','2026-07-24','2026-07-26','2026-07-27'];
+  return raw.map((r,i)=>{
+    const sent=(r[5]||'').split(',').filter(Boolean);
+    return {id:i+1,name:r[0],phone:r[1],birthday:r[2],type:r[3],joined:JOINED[i]||r[4],
+      status:'active',welcome_sent:sent.includes('welcome'),group_sent:sent.includes('group'),
+      bday_sent_year:null};
+  });
+}
+const Store = {
+  _k:'hamovil_crm_members_v1',
+  load(){ try{const s=localStorage.getItem(this._k); if(s)return JSON.parse(s);}catch(e){} const d=seed(); this.save(d); return d; },
+  save(d){ localStorage.setItem(this._k, JSON.stringify(d)); },
+  all(){ return this.load(); },
+  add(m){ const d=this.load(); m.id=Math.max(0,...d.map(x=>x.id))+1; d.unshift(m); this.save(d); return m; },
+  update(id,patch){ const d=this.load(); const i=d.findIndex(x=>x.id===id); if(i>-1){d[i]={...d[i],...patch}; this.save(d);} return d[i]; },
+};
+
+/* ===== helpers ===== */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const initials=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('');
+const avColor=n=>AV_COLORS[[...n].reduce((a,c)=>a+c.charCodeAt(0),0)%AV_COLORS.length];
+const fmtDate=s=>{const d=new Date(s);return d.getDate()+' ב'+['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'][d.getMonth()];};
+const bMonth=s=>new Date(s).getMonth(), bDay=s=>new Date(s).getDate();
+const isBdayThisMonth=m=>bMonth(m.birthday)===curMonth;
+const age=s=>{const b=new Date(s);let a=now.getFullYear()-b.getFullYear();if(now.getMonth()<b.getMonth()||(now.getMonth()===b.getMonth()&&now.getDate()<b.getDate()))a--;return a;};
+
+let state={view:'overview',q:'',fType:'all',fMonth:'all'};
+
+function toast(t){const el=$('#toast');$('#toast-t').textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2600);}
+
+/* ===== stats ===== */
+function stats(){
+  const d=Store.all();
+  const wk=new Date(now); wk.setDate(wk.getDate()-7);
+  const mo=new Date(now); mo.setMonth(mo.getMonth()-1);
+  return {
+    total:d.length,
+    newWeek:d.filter(m=>new Date(m.joined)>=wk).length,
+    newMonth:d.filter(m=>new Date(m.joined)>=mo).length,
+    bdays:d.filter(isBdayThisMonth).length,
+    pro:d.filter(m=>m.type==='pro').length,
+    priv:d.filter(m=>m.type==='private').length,
+  };
+}
+function monthlyJoins(){
+  const d=Store.all(), out=[];
+  for(let i=5;i>=0;i--){const dt=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const c=d.filter(m=>{const j=new Date(m.joined);return j.getFullYear()===dt.getFullYear()&&j.getMonth()===dt.getMonth();}).length;
+    out.push({m:MONTHS[dt.getMonth()],c,hot:i===0});}
+  return out;
+}
+
+/* ===================== VIEWS ===================== */
+function renderOverview(){
+  const s=stats(), mj=monthlyJoins(), mx=Math.max(1,...mj.map(x=>x.c));
+  const bdayList=Store.all().filter(isBdayThisMonth).sort((a,b)=>bDay(a.birthday)-bDay(b.birthday));
+  const recent=[...Store.all()].sort((a,b)=>new Date(b.joined)-new Date(a.joined)).slice(0,5);
+  return `
+  <div class="view">
+    <div class="stat-grid">
+      ${statCard('n','users','סה״כ חברי מועדון',s.total,`+${s.newWeek} השבוע`,'up')}
+      ${statCard('r','spark','נרשמו החודש',s.newMonth,'מגמת עלייה','up')}
+      ${statCard('w','gift','ימי הולדת החודש',s.bdays,'ברכות אוטומטיות','flat')}
+      ${statCard('g','tag','אנשי מקצוע / קבלנים',s.pro,`${s.priv} פרטיים`,'flat')}
+    </div>
+    <div class="grid-2">
+      <div class="card panel">
+        <div class="panel-h"><h3>הצטרפויות — 6 חודשים אחרונים</h3></div>
+        <div class="chart">
+          ${mj.map(b=>`<div class="bar-wrap"><div class="bar-track"><div class="bar ${b.hot?'hot':''}" style="height:${Math.round(b.c/mx*100)}%"><span class="cap">${b.c}</span></div></div><span class="bar-x">${b.m}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="card panel">
+        <div class="panel-h"><h3>ימי הולדת החודש 🎁</h3><span class="link">${bdayList.length} חברים</span></div>
+        ${bdayList.length?bdayList.slice(0,6).map(m=>`
+          <div class="bday" onclick="openMember(${m.id})">
+            <div class="av" style="background:${avColor(m.name)}22;color:${avColor(m.name)}">${initials(m.name)}</div>
+            <div><div class="nm">${m.name}</div><div class="dt">בן ${age(m.birthday)+1} · ${m.type==='pro'?'קבלן':'פרטי'}</div></div>
+            <div class="day"><div class="d">${bDay(m.birthday)}</div><div class="m">${MONTHS[bMonth(m.birthday)]}</div></div>
+          </div>`).join(''):'<div class="empty">אין ימי הולדת החודש</div>'}
+      </div>
+    </div>
+    <div class="grid-2" style="grid-template-columns:1fr">
+      <div class="card panel">
+        <div class="panel-h"><h3>נרשמו לאחרונה</h3><span class="link" onclick="go('members')" style="cursor:pointer">לכל החברים ←</span></div>
+        <div class="m-cards" style="display:flex">
+          ${recent.map(m=>memberCardRow(m)).join('')}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function statCard(clr,ic,lbl,val,delta,dir){
+  const icons={users:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/>',
+    spark:'<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2z"/>',
+    gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13M12 8S10.5 4 8 4 5 8 8 8M12 8s1.5-4 4-4 3 4 0 4"/>',
+    tag:'<path d="M20.6 13.4 12 22l-8.6-8.6A2 2 0 0 1 2.8 12V4a2 2 0 0 1 2-2h8a2 2 0 0 1 1.4.6l6.4 8.4a2 2 0 0 1 0 2.4z"/><circle cx="7" cy="7" r="1.3"/>'};
+  return `<div class="card stat"><div class="corner-motif"></div>
+    <div class="ico ${clr}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${icons[ic]}</svg></div>
+    <div class="val">${val}</div><div class="lbl">${lbl}</div>
+    <div class="delta ${dir}">${dir==='up'?'▲ ':''}${delta}</div></div>`;
+}
+function memberCardRow(m){
+  const soon=isBdayThisMonth(m)&&bDay(m.birthday)>=now.getDate();
+  return `<div class="m-card card" onclick="openMember(${m.id})">
+    <div class="m-name"><div class="av" style="background:${avColor(m.name)}">${initials(m.name)}</div></div>
+    <div class="info"><div class="top"><span class="nm">${m.name}</span>${m.type==='pro'?'<span class="tag pro">קבלן</span>':''}</div>
+      <div class="meta"><span class="phone">${m.phone}</span><span>הצטרף ${fmtDate(m.joined)}</span></div></div>
+    <svg class="chev" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></svg>
+  </div>`;
+}
+
+function renderMembers(){
+  let d=Store.all();
+  if(state.q){const q=state.q.trim();d=d.filter(m=>m.name.includes(q)||m.phone.includes(q));}
+  if(state.fType!=='all')d=d.filter(m=>m.type===state.fType);
+  if(state.fMonth!=='all')d=d.filter(m=>bMonth(m.birthday)===+state.fMonth);
+  const rows=d.map(m=>{
+    const soon=isBdayThisMonth(m);
+    return `<tr onclick="openMember(${m.id})">
+      <td><div class="m-name"><div class="av" style="background:${avColor(m.name)}">${initials(m.name)}</div><span class="nm">${m.name}</span></div></td>
+      <td class="phone">${m.phone}</td>
+      <td><span class="tag ${m.type==='pro'?'pro':'priv'}">${m.type==='pro'?'קבלן':'פרטי'}</span></td>
+      <td class="bd-cell ${soon?'soon':''}">${bDay(m.birthday)} ${MONTHS[bMonth(m.birthday)]}${soon?'<span class="s">החודש</span>':''}</td>
+      <td style="color:var(--muted);font-weight:600">${fmtDate(m.joined)}</td>
+      <td>${m.status==='active'?'<span class="tag act">פעיל</span>':'<span class="tag out">הוסר</span>'}</td>
+    </tr>`;}).join('');
+  const cards=d.map(memberCardRow).join('');
+  const monthOpts=MONTHS.map((mn,i)=>`<option value="${i}">${mn}</option>`).join('');
+  return `<div class="view">
+    <div class="toolbar">
+      <div class="seg" id="seg-type">
+        <button class="${state.fType==='all'?'on':''}" onclick="setFilter('fType','all')">הכל</button>
+        <button class="${state.fType==='private'?'on':''}" onclick="setFilter('fType','private')">פרטי</button>
+        <button class="${state.fType==='pro'?'on':''}" onclick="setFilter('fType','pro')">קבלנים</button>
+      </div>
+      <select class="selct" onchange="setFilter('fMonth',this.value)"><option value="all">יום הולדת — כל החודשים</option>${monthOpts}</select>
+      <button class="btn btn-ghost" onclick="exportCSV()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>ייצוא CSV</button>
+      <span class="count-chip">${d.length} חברים</span>
+    </div>
+    <div class="card tbl-card">
+      <table><thead><tr><th>שם</th><th>טלפון</th><th>סוג</th><th>יום הולדת</th><th>הצטרפות</th><th>סטטוס</th></tr></thead>
+      <tbody>${rows||''}</tbody></table>
+      <div class="m-cards" style="padding:${d.length?'0':'0'}">${cards}</div>
+      ${d.length?'':'<div class="empty">לא נמצאו חברים תואמים</div>'}
+    </div>
+  </div>`;
+}
+
+function renderSend(){
+  return `<div class="view">
+    <div class="grid-2">
+      <div class="card panel">
+        <div class="panel-h"><h3>שליחת הודעה לחברי המועדון</h3></div>
+        <div class="field"><label>נמענים</label><select class="selct" style="width:100%" id="snd-aud">
+          <option>כל חברי המועדון (${stats().total})</option>
+          <option>לקוחות פרטיים בלבד (${stats().priv})</option>
+          <option>אנשי מקצוע / קבלנים (${stats().pro})</option>
+          <option>חברים עם יום הולדת החודש (${stats().bdays})</option>
+        </select></div>
+        <div class="field"><label>תבנית הודעה</label><select class="selct" style="width:100%" id="snd-tpl" onchange="updatePreview()">
+          <option value="welcome">🎉 ברוכים הבאים למועדון</option>
+          <option value="bday">🎂 ברכת יום הולדת</option>
+          <option value="deal">🔒 מבצע סודי לחברי מועדון</option>
+        </select></div>
+        <div class="field"><label>טקסט ההודעה</label><textarea id="snd-txt" oninput="updatePreview()"></textarea></div>
+        <button class="btn btn-red" style="width:100%;justify-content:center" onclick="doSend()">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחה בוואטסאפ</button>
+      </div>
+      <div class="card panel">
+        <div class="panel-h"><h3>תצוגה מקדימה</h3></div>
+        <div class="wa-preview"><div class="wa-bubble">
+          <img id="pv-img" src="assets/card.png" alt="">
+          <div class="txt" id="pv-txt"></div>
+          <div class="tm">9:41 ✓✓</div>
+        </div></div>
+        <p style="font-size:12.5px;color:var(--muted);margin-top:12px;text-align:center">התמונה והטקסט נשלחים דרך WhatsApp Business הרשמי מהמספר 050-2800006</p>
+      </div>
+    </div>
+  </div>`;
+}
+const TEMPLATES={
+  welcome:{img:'assets/card.png',txt:'שלום {שם}! 🎉\nברוכים הבאים למועדון הלקוחות של המוביל סנטר.\nמעכשיו — הנחות על כל החנות, מתנת יום הולדת וגישה לקבוצת המבצעים הסודית.\nכרטיס החבר שלך מצורף 👆'},
+  bday:{img:'assets/card.png',txt:'יום הולדת שמח {שם}! 🎂\nכל צוות המוביל סנטר מאחל לך שנה מדהימה.\nמתנת יום ההולדת שלך מחכה בחנות — בוא לקחת אותה 🎁'},
+  deal:{img:'assets/card.png',txt:'🔒 בלעדי לחברי המועדון\n{שם}, הגיע מבצע חדש שלא מתפרסם בשום מקום.\nרק לחברי מועדון, לזמן מוגבל 👀'},
+};
+function updatePreview(){
+  const tpl=$('#snd-tpl').value, t=TEMPLATES[tpl];
+  const ta=$('#snd-txt');
+  if(ta&&(!ta.value||ta.dataset.tpl!==tpl)){ta.value=t.txt;ta.dataset.tpl=tpl;}
+  $('#pv-txt').textContent=(ta?ta.value:t.txt).replace('{שם}','אחמד');
+  $('#pv-img').src=t.img;
+}
+function doSend(){const aud=$('#snd-aud').value;toast('נשלח בהצלחה ל'+aud.split('(')[0].trim()+' ✓');}
+
+function renderSettings(){
+  return `<div class="view"><div class="card panel" style="max-width:640px">
+    <div class="panel-h"><h3>הגדרות המערכת</h3></div>
+    <div class="set-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M22 16.9V20a2 2 0 0 1-2.2 2A19 19 0 0 1 2 4.2 2 2 0 0 1 4 2h3.1a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 12a16 16 0 0 0 4 4l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/></svg></div>
+      <div><div class="k">מספר וואטסאפ לשליחה</div><div class="d">כל האוטומציות נשלחות מהמספר הזה</div></div><span class="val">050-2800006</span></div>
+    <div class="set-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M22 12A10 10 0 1 1 5.9 4.2"/><path d="m9 11 3 3L22 4"/></svg></div>
+      <div><div class="k">הודעת ברוכים הבאים אוטומטית</div><div class="d">נשלחת לכל נרשם חדש עם כרטיס החבר</div></div><span class="tag act">פעיל</span></div>
+    <div class="set-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13"/></svg></div>
+      <div><div class="k">ברכת יום הולדת אוטומטית</div><div class="d">נשלחת בבוקר יום ההולדת של כל חבר</div></div><span class="tag act">פעיל</span></div>
+    <div class="set-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+      <div><div class="k">קבוצת מבצעים סודית</div><div class="d">לינק הצטרפות נשלח אוטומטית לנרשמים</div></div><span class="badge-soon">בהקמה</span></div>
+    <div class="set-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zM2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+      <div><div class="k">מסד נתונים</div><div class="d">גרסת פיתוח — יועבר ל-Supabase על שם הלקוח לאחר אישור</div></div><span class="badge-soon">פרוטוטייפ</span></div>
+  </div></div>`;
+}
+
+/* ===== drawer ===== */
+function openMember(id){
+  const m=Store.all().find(x=>x.id===id); if(!m)return;
+  const soon=isBdayThisMonth(m);
+  $('#drawer').innerHTML=`
+    <div class="dr-head"><div class="rband"></div>
+      <button class="dr-close" onclick="closeDrawer()"><svg fill="none" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      <div class="dr-av" style="background:${avColor(m.name)}">${initials(m.name)}</div>
+      <div class="dr-name">${m.name}</div>
+      <div class="dr-tags"><span class="tag">${m.type==='pro'?'איש מקצוע / קבלן':'לקוח פרטי'}</span>${m.status==='active'?'<span class="tag">חבר פעיל</span>':'<span class="tag">הוסר מדיוור</span>'}</div>
+    </div>
+    <div class="dr-body">
+      <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M22 16.9V20a2 2 0 0 1-2.2 2A19 19 0 0 1 2 4.2 2 2 0 0 1 4 2h3.1a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 12a16 16 0 0 0 4 4l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z"/></svg></div><div><div class="k">טלפון</div><div class="v ltr">${m.phone}</div></div></div>
+      <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13"/></svg></div><div><div class="k">יום הולדת</div><div class="v">${fmtDate(m.birthday)} · בן ${age(m.birthday)}${soon?' 🎂':''}</div></div></div>
+      <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><div class="k">הצטרף למועדון</div><div class="v">${fmtDate(m.joined)}</div></div></div>
+      <div class="dr-sec-t">היסטוריית הודעות</div>
+      <div class="tl">
+        <div class="tl-i ${m.welcome_sent?'':'pending'}"><div class="tt">הודעת ברוכים הבאים ${m.welcome_sent?'✓':''}</div><div class="td">${m.welcome_sent?'נשלחה עם ההצטרפות':'ממתינה לשליחה'}</div></div>
+        <div class="tl-i ${m.group_sent?'':'pending'}"><div class="tt">לינק לקבוצה הסודית ${m.group_sent?'✓':''}</div><div class="td">${m.group_sent?'נשלח':'טרם נשלח'}</div></div>
+        <div class="tl-i pending"><div class="tt">ברכת יום הולדת</div><div class="td">${soon?'תישלח ב-'+bDay(m.birthday)+' '+MONTHS[bMonth(m.birthday)]:'מתוזמנת לחודש יום ההולדת'}</div></div>
+      </div>
+    </div>
+    <div class="dr-foot">
+      <button class="btn btn-red" onclick="quickSend(${m.id})"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שלח הודעה</button>
+      <button class="btn btn-ghost" onclick="toggleOut(${m.id})">${m.status==='active'?'הסר מדיוור':'החזר לפעיל'}</button>
+    </div>`;
+  $('#scrim').classList.add('show');$('#drawer').classList.add('show');
+}
+function closeDrawer(){$('#scrim').classList.remove('show');$('#drawer').classList.remove('show');}
+function quickSend(id){const m=Store.all().find(x=>x.id===id);toast('הודעה נשלחה ל'+m.name.split(' ')[0]+' ✓');}
+function toggleOut(id){const m=Store.all().find(x=>x.id===id);const ns=m.status==='active'?'opted_out':'active';Store.update(id,{status:ns});toast(ns==='active'?'הוחזר לדיוור':'הוסר מדיוור');closeDrawer();render();}
+
+/* ===== add modal ===== */
+function openAdd(){
+  $('#modal-box').innerHTML=`
+    <div class="mb-head"><div><h3>הוספת חבר מועדון</h3><p>הזנה ידנית — למי שנרשם בחנות</p></div>
+      <button class="dr-close" style="position:static;background:var(--line-2)" onclick="closeModal()"><svg fill="none" viewBox="0 0 24 24" style="stroke:var(--muted)"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="mb-body">
+      <div class="field"><label>שם מלא</label><input id="a-name" placeholder="שם החבר"></div>
+      <div class="field"><label>טלפון נייד</label><input id="a-phone" inputmode="tel" placeholder="050-0000000" dir="ltr" style="text-align:right"></div>
+      <div class="field"><label>תאריך יום הולדת</label><input id="a-bday" type="date" max="2010-12-31"></div>
+      <div class="field"><label>סוג לקוח</label><div class="type-pick">
+        <span><input type="radio" id="a-priv" name="atype" value="private" checked><label for="a-priv">לקוח פרטי</label></span>
+        <span><input type="radio" id="a-pro" name="atype" value="pro"><label for="a-pro">איש מקצוע / קבלן</label></span>
+      </div></div>
+      <div class="mb-foot">
+        <button class="btn btn-red" onclick="saveMember()">הוסף ושלח ברוכים הבאים</button>
+        <button class="btn btn-ghost" onclick="closeModal()">ביטול</button>
+      </div>
+    </div>`;
+  $('#modal').classList.add('show');
+}
+function closeModal(){$('#modal').classList.remove('show');}
+function saveMember(){
+  const name=$('#a-name').value.trim(), phone=$('#a-phone').value.trim();
+  if(!name){toast('נא להזין שם');return;}
+  if(!/^0(5\d|[23489])\d{7}$/.test(phone.replace(/\D/g,''))){toast('מספר טלפון לא תקין');return;}
+  const type=document.querySelector('input[name=atype]:checked').value;
+  Store.add({name,phone,birthday:$('#a-bday').value||'1990-01-01',type,joined:now.toISOString().slice(0,10),status:'active',welcome_sent:true,group_sent:false,bday_sent_year:null});
+  closeModal();render();toast('נוסף '+name.split(' ')[0]+' + נשלחה ברוכים הבאים ✓');
+}
+
+function exportCSV(){
+  const d=Store.all();
+  const rows=[['שם','טלפון','סוג','יום הולדת','תאריך הצטרפות','סטטוס'],
+    ...d.map(m=>[m.name,m.phone,m.type==='pro'?'קבלן':'פרטי',m.birthday,m.joined,m.status])];
+  const csv='﻿'+rows.map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='hamovil-club-members.csv';a.click();toast('הקובץ יוצא ✓');
+}
+
+/* ===== router ===== */
+const TITLES={overview:['סקירה כללית','מבט על מצב המועדון'],members:['חברי מועדון','ניהול וחיפוש חברים'],send:['שליחת הודעות','ברודקאסט וטמפלטים'],settings:['הגדרות','הגדרות מערכת ואוטומציות']};
+function render(){
+  const v=state.view;
+  $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,settings:renderSettings}[v])();
+  $('#pg-title').textContent=TITLES[v][0];$('#pg-crumb').textContent=TITLES[v][1];
+  $('#nav-count').textContent=stats().total;
+  $$('.nav-i').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
+  $$('.botnav a').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
+  if(v==='send')setTimeout(updatePreview,0);
+  // animate bars
+  if(v==='overview')requestAnimationFrame(()=>$$('.bar').forEach(b=>{const h=b.style.height;b.style.height='0';requestAnimationFrame(()=>b.style.height=h);}));
+}
+function go(v){state.view=v;state.q='';$('#search').value='';window.scrollTo(0,0);render();}
+function setFilter(k,val){state[k]=val;render();}
+$$('[data-view]').forEach(el=>el.addEventListener('click',()=>go(el.dataset.view)));
+$('#search').addEventListener('input',e=>{state.q=e.target.value;if(state.view!=='members'){state.view='members';}render();});
+
+render();
+</script>
+</body>
+</html>
