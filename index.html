@@ -319,6 +319,7 @@
       <a class="nav-i" data-view="members"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>חברי מועדון<span class="badge" id="nav-count">0</span></a>
       <a class="nav-i" data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחת הודעות</a>
       <a class="nav-i" data-view="history"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>היסטוריית הודעות</a>
+      <a class="nav-i" data-view="inbox"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.4 8.4 0 0 1-4-1L3 21l2-5.5a8.4 8.4 0 0 1-1-4A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>תגובות<span class="badge" id="nav-inbox">0</span></a>
       <span class="nav-lbl">מערכת</span>
       <a class="nav-i" data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
     </nav>
@@ -347,6 +348,7 @@
   <a data-view="members"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>חברים</a>
   <a data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחה</a>
   <a data-view="history"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>היסטוריה</a>
+  <a data-view="inbox"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.4 8.4 0 0 1-4-1L3 21l2-5.5a8.4 8.4 0 0 1-1-4A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>תגובות</a>
   <a data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
 </div>
 
@@ -911,18 +913,50 @@ async function loadHistory(){
 async function loadMemberHistory(id){
   const el=$('#dr-hist'); if(!el)return;
   try{
-    const res=await sbFetch('/rest/v1/message_log?select=*&member_id=eq.'+id+'&order=created_at.desc&limit=50');
-    const rows=res.ok?await res.json():[];
-    if(!rows.length){el.innerHTML='<div class="tl-i pending"><div class="tt">אין הודעות עדיין</div><div class="td">הודעות שיישלחו לחבר יופיעו כאן</div></div>';return;}
-    el.innerHTML=rows.map(r=>`<div class="tl-i ${r.status==='sent'?'':'pending'}"><div class="tt">${KIND_LBL[r.kind]||r.kind||'הודעה'} ${r.status==='sent'?'✓':'✗'}</div><div class="td">${r.status==='sent'?'נשלח':'נכשל'} · ${fmtDateTime(r.created_at)}</div></div>`).join('');
+    const [outR,inR]=await Promise.all([
+      sbFetch('/rest/v1/message_log?select=kind,status,created_at&member_id=eq.'+id+'&order=created_at.desc&limit=50'),
+      sbFetch('/rest/v1/inbound_messages?select=body,created_at&member_id=eq.'+id+'&order=created_at.desc&limit=50')
+    ]);
+    const out=(outR.ok?await outR.json():[]).map(r=>({d:'out',t:r.created_at,label:KIND_LBL[r.kind]||r.kind||'הודעה',ok:r.status==='sent'}));
+    const inb=(inR.ok?await inR.json():[]).map(r=>({d:'in',t:r.created_at,label:(r.body||'(ללא טקסט)')}));
+    const all=[...out,...inb].sort((a,b)=>new Date(b.t)-new Date(a.t)).slice(0,60);
+    if(!all.length){el.innerHTML='<div class="tl-i pending"><div class="tt">אין הודעות עדיין</div><div class="td">הודעות ותגובות יופיעו כאן</div></div>';return;}
+    el.innerHTML=all.map(x=> x.d==='out'
+      ? `<div class="tl-i ${x.ok?'':'pending'}"><div class="tt">↗ ${x.label} ${x.ok?'✓':'✗'}</div><div class="td">נשלח · ${fmtDateTime(x.t)}</div></div>`
+      : `<div class="tl-i"><div class="tt" style="color:#16a34a">↘ תגובה: ${(''+x.label).replace(/</g,'&lt;')}</div><div class="td">מהחבר · ${fmtDateTime(x.t)}</div></div>`).join('');
   }catch(e){el.innerHTML='<div class="tl-i pending"><div class="td">שגיאה בטעינה</div></div>';}
 }
 
+/* ===== תגובות (הודעות נכנסות) ===== */
+function renderInbox(){ loadInbox(); return `<div class="view"><div class="card tbl-card" id="inbox-wrap"><div class="empty">טוען תגובות…</div></div></div>`; }
+async function loadInbox(){
+  let rows=[];
+  try{ const res=await sbFetch('/rest/v1/inbound_messages?select=*&order=created_at.desc&limit=300'); rows=res.ok?await res.json():[]; }catch(e){}
+  const nb=$('#nav-inbox'); if(nb) nb.textContent=rows.length;
+  const el=$('#inbox-wrap'); if(!el)return;
+  try{
+    if(!rows.length){el.innerHTML='<div class="empty">אין תגובות עדיין. כשחבר יענה לוואטסאפ — ההודעה תופיע כאן, וכל בקשת "הסר" תטופל אוטומטית (הסרה מדיוור).</div>';return;}
+    const nm=r=>r.from_name||r.from_phone;
+    const esc=s=>(''+(s||'')).replace(/</g,'&lt;');
+    const trs=rows.map(r=>`<tr>
+      <td><div class="m-name"><div class="av" style="background:${avColor(nm(r))}">${initials(nm(r))}</div><span class="nm">${r.from_name||'—'}</span></div></td>
+      <td class="phone">${r.from_phone}</td>
+      <td>${esc(r.body)||'<span style="color:var(--muted)">(ללא טקסט)</span>'}</td>
+      <td style="color:var(--muted);font-weight:600;white-space:nowrap">${fmtDateTime(r.created_at)}</td>
+    </tr>`).join('');
+    const cards=rows.map(r=>`<div style="padding:13px 14px;border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div class="av" style="background:${avColor(nm(r))}">${initials(nm(r))}</div>
+        <div style="flex:1"><div style="font-weight:700">${r.from_name||r.from_phone}</div><div style="font-size:11px;color:var(--muted)">${fmtDateTime(r.created_at)}</div></div></div>
+      <div style="font-size:14px">${esc(r.body)||'(ללא טקסט)'}</div></div>`).join('');
+    el.innerHTML=`<table><thead><tr><th>מאת</th><th>טלפון</th><th>ההודעה</th><th>מתי</th></tr></thead><tbody>${trs}</tbody></table><div class="m-cards">${cards}</div>`;
+  }catch(e){el.innerHTML='<div class="empty">שגיאה בטעינה</div>';}
+}
+
 /* ===== router ===== */
-const TITLES={overview:['סקירה כללית','מבט על מצב המועדון'],members:['חברי מועדון','ניהול וחיפוש חברים'],send:['שליחת הודעות','ברודקאסט וטמפלטים'],history:['היסטוריית הודעות','כל ההודעות שנשלחו'],settings:['הגדרות','הגדרות מערכת ואוטומציות']};
+const TITLES={overview:['סקירה כללית','מבט על מצב המועדון'],members:['חברי מועדון','ניהול וחיפוש חברים'],send:['שליחת הודעות','ברודקאסט וטמפלטים'],history:['היסטוריית הודעות','כל ההודעות שנשלחו'],inbox:['תגובות','הודעות נכנסות מחברי המועדון'],settings:['הגדרות','הגדרות מערכת ואוטומציות']};
 function render(){
   const v=state.view;
-  $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,history:renderHistory,settings:renderSettings}[v])();
+  $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,history:renderHistory,inbox:renderInbox,settings:renderSettings}[v])();
   $('#pg-title').textContent=TITLES[v][0];$('#pg-crumb').textContent=TITLES[v][1];
   $('#nav-count').textContent=stats().total;
   $$('.nav-i').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
