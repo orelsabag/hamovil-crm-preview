@@ -817,10 +817,13 @@ const KIND_LBL={welcome:'ברוכים הבאים',birthday:'יום הולדת',r
 function fmtDateTime(iso){try{const d=new Date(iso);return d.toLocaleDateString('he-IL')+' · '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
 function renderHistory(){ loadHistory(); return `<div class="view"><div class="card tbl-card" id="hist-wrap"><div class="empty">טוען היסטוריה…</div></div></div>`; }
 async function loadHistory(){
-  const el=$('#hist-wrap'); if(!el)return;
+  let rows=[];
   try{
     const res=await sbFetch('/rest/v1/message_log?select=*&order=created_at.desc&limit=300');
-    const rows=res.ok?await res.json():[];
+    rows=res.ok?await res.json():[];
+  }catch(e){}
+  const el=$('#hist-wrap'); if(!el)return;
+  try{
     if(!rows.length){el.innerHTML='<div class="empty">עדיין לא נשלחו הודעות. כאן תופיע כל הודעה שנשלחה — אוטומטית או ידנית.</div>';return;}
     const badge=r=>r.status==='sent'?'<span class="tag act">נשלח</span>':'<span class="tag out">נכשל</span>';
     const trs=rows.map(r=>`<tr>
