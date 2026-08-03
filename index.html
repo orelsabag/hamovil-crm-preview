@@ -318,6 +318,7 @@
       <a class="nav-i on" data-view="overview"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>סקירה כללית</a>
       <a class="nav-i" data-view="members"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>חברי מועדון<span class="badge" id="nav-count">0</span></a>
       <a class="nav-i" data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחת הודעות</a>
+      <a class="nav-i" data-view="history"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>היסטוריית הודעות</a>
       <span class="nav-lbl">מערכת</span>
       <a class="nav-i" data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
     </nav>
@@ -345,6 +346,7 @@
   <a class="on" data-view="overview"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>סקירה</a>
   <a data-view="members"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/></svg>חברים</a>
   <a data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחה</a>
+  <a data-view="history"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>היסטוריה</a>
   <a data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
 </div>
 
@@ -746,11 +748,7 @@ function openMember(id){
       <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13"/></svg></div><div><div class="k">יום הולדת</div><div class="v">${m.birthday?fmtDate(m.birthday)+' · בן '+age(m.birthday):'לא צוין'}${soon?' 🎂':''}</div></div></div>
       <div class="dr-row"><div class="ic"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><div><div class="k">הצטרף למועדון</div><div class="v">${fmtDate(m.joined)}</div></div></div>
       <div class="dr-sec-t">היסטוריית הודעות</div>
-      <div class="tl">
-        <div class="tl-i ${m.welcome_sent?'':'pending'}"><div class="tt">ברוכים הבאים + לינק לקבוצה ${m.welcome_sent?'✓':''}</div><div class="td">${m.welcome_sent?'נשלחה עם ההצטרפות':'ממתינה לשליחה'}</div></div>
-        <div class="tl-i pending"><div class="tt">ברכת יום הולדת</div><div class="td">${soon?'תישלח ב-'+bDay(m.birthday)+' '+MONTHS[bMonth(m.birthday)]:'מתוזמנת לחודש יום ההולדת'}</div></div>
-        <div class="tl-i ${m.review_sent?'':'pending'}"><div class="tt">תודה על הקנייה + ביקורת ${m.review_sent?'✓':''}</div><div class="td">${m.review_sent?'נשלחה':'נשלח בלחיצה אחרי קנייה'}</div></div>
-      </div>
+      <div id="dr-hist" class="tl"><div class="tl-i pending"><div class="td">טוען…</div></div></div>
     </div>
     <div class="dr-foot" style="flex-wrap:wrap">
       <button class="btn btn-red" onclick="quickReview('${m.id}')" style="flex:1 1 100%"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 .6-5.3 4.6L18.3 21 12 17.3 5.7 21l1.6-7.3L2 9.1l7-.6L12 2z"/></svg>שלח תודה + בקשת ביקורת בגוגל</button>
@@ -758,9 +756,10 @@ function openMember(id){
       <button class="btn btn-ghost" onclick="toggleOut('${m.id}')" style="flex:1">${m.status==='active'?'הסר מדיוור':'החזר'}</button>
     </div>`;
   $('#scrim').classList.add('show');$('#drawer').classList.add('show');
+  loadMemberHistory(id);
 }
 function closeDrawer(){$('#scrim').classList.remove('show');$('#drawer').classList.remove('show');}
-// שליחה אמיתית: מכניס לתור send_queue → שרת Hetzner שולח דרך WAHA (טקסט+תמונה) תוך ~דקה. בלי לפתוח וואטסאפ.
+// שליחה אמיתית: מכניס לתור send_queue → שרת Hetzner שולח דרך WhatsApp Cloud API הרשמי (תבנית מאושרת) תוך ~דקה. בלי לפתוח וואטסאפ.
 const PUBLIC_ASSETS='https://crm.hamovilcenter.co.il';
 function fillTpl(txt,m){return (txt||'').replace('{שם}',(m.name||'').split(' ')[0]);}
 async function enqueueOne(phone,name,kind,tpl){
@@ -813,11 +812,47 @@ function exportCSV(){
   a.download='hamovil-club-members.csv';a.click();toast('הקובץ יוצא ✓');
 }
 
+/* ===== היסטוריית הודעות ===== */
+const KIND_LBL={welcome:'ברוכים הבאים',birthday:'יום הולדת',review:'תודה + ביקורת',deal:'מבצע',custom:'הודעה'};
+function fmtDateTime(iso){try{const d=new Date(iso);return d.toLocaleDateString('he-IL')+' · '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+function renderHistory(){ loadHistory(); return `<div class="view"><div class="card tbl-card" id="hist-wrap"><div class="empty">טוען היסטוריה…</div></div></div>`; }
+async function loadHistory(){
+  const el=$('#hist-wrap'); if(!el)return;
+  try{
+    const res=await sbFetch('/rest/v1/message_log?select=*&order=created_at.desc&limit=300');
+    const rows=res.ok?await res.json():[];
+    if(!rows.length){el.innerHTML='<div class="empty">עדיין לא נשלחו הודעות. כאן תופיע כל הודעה שנשלחה — אוטומטית או ידנית.</div>';return;}
+    const badge=r=>r.status==='sent'?'<span class="tag act">נשלח</span>':'<span class="tag out">נכשל</span>';
+    const trs=rows.map(r=>`<tr>
+      <td><div class="m-name"><div class="av" style="background:${avColor(r.to_name||r.to_phone)}">${initials(r.to_name||'?')}</div><span class="nm">${r.to_name||'—'}</span></div></td>
+      <td class="phone">${r.to_phone}</td>
+      <td>${KIND_LBL[r.kind]||r.kind||'—'}</td>
+      <td>${badge(r)}</td>
+      <td style="color:var(--muted);font-weight:600;white-space:nowrap">${fmtDateTime(r.created_at)}</td>
+    </tr>`).join('');
+    const cards=rows.map(r=>`<div style="padding:13px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
+      <div class="av" style="background:${avColor(r.to_name||r.to_phone)}">${initials(r.to_name||'?')}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:700">${r.to_name||'—'}</div>
+        <div style="font-size:12px;color:var(--muted)">${KIND_LBL[r.kind]||r.kind||''} · ${fmtDateTime(r.created_at)}</div></div>${badge(r)}</div>`).join('');
+    el.innerHTML=`<table><thead><tr><th>נמען</th><th>טלפון</th><th>סוג הודעה</th><th>סטטוס</th><th>מתי</th></tr></thead><tbody>${trs}</tbody></table>
+      <div class="m-cards">${cards}</div>`;
+  }catch(e){el.innerHTML='<div class="empty">שגיאה בטעינת ההיסטוריה</div>';}
+}
+async function loadMemberHistory(id){
+  const el=$('#dr-hist'); if(!el)return;
+  try{
+    const res=await sbFetch('/rest/v1/message_log?select=*&member_id=eq.'+id+'&order=created_at.desc&limit=50');
+    const rows=res.ok?await res.json():[];
+    if(!rows.length){el.innerHTML='<div class="tl-i pending"><div class="tt">אין הודעות עדיין</div><div class="td">הודעות שיישלחו לחבר יופיעו כאן</div></div>';return;}
+    el.innerHTML=rows.map(r=>`<div class="tl-i ${r.status==='sent'?'':'pending'}"><div class="tt">${KIND_LBL[r.kind]||r.kind||'הודעה'} ${r.status==='sent'?'✓':'✗'}</div><div class="td">${r.status==='sent'?'נשלח':'נכשל'} · ${fmtDateTime(r.created_at)}</div></div>`).join('');
+  }catch(e){el.innerHTML='<div class="tl-i pending"><div class="td">שגיאה בטעינה</div></div>';}
+}
+
 /* ===== router ===== */
-const TITLES={overview:['סקירה כללית','מבט על מצב המועדון'],members:['חברי מועדון','ניהול וחיפוש חברים'],send:['שליחת הודעות','ברודקאסט וטמפלטים'],settings:['הגדרות','הגדרות מערכת ואוטומציות']};
+const TITLES={overview:['סקירה כללית','מבט על מצב המועדון'],members:['חברי מועדון','ניהול וחיפוש חברים'],send:['שליחת הודעות','ברודקאסט וטמפלטים'],history:['היסטוריית הודעות','כל ההודעות שנשלחו'],settings:['הגדרות','הגדרות מערכת ואוטומציות']};
 function render(){
   const v=state.view;
-  $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,settings:renderSettings}[v])();
+  $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,history:renderHistory,settings:renderSettings}[v])();
   $('#pg-title').textContent=TITLES[v][0];$('#pg-crumb').textContent=TITLES[v][1];
   $('#nav-count').textContent=stats().total;
   $$('.nav-i').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
