@@ -320,6 +320,7 @@
       <a class="nav-i" data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחת הודעות</a>
       <a class="nav-i" data-view="history"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>היסטוריית הודעות</a>
       <a class="nav-i" data-view="inbox"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.4 8.4 0 0 1-4-1L3 21l2-5.5a8.4 8.4 0 0 1-1-4A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>תגובות<span class="badge" id="nav-inbox">0</span></a>
+      <a class="nav-i" data-view="legacy"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7h18v3.5H3zM5 10.5v8.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8.5M9.5 14h5"/></svg>לקוחות ותיקים<span class="badge" id="nav-legacy">0</span></a>
       <span class="nav-lbl">מערכת</span>
       <a class="nav-i" data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
     </nav>
@@ -349,6 +350,7 @@
   <a data-view="send"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחה</a>
   <a data-view="history"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>היסטוריה</a>
   <a data-view="inbox"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.4 8.4 0 0 1-4-1L3 21l2-5.5a8.4 8.4 0 0 1-1-4A8.4 8.4 0 0 1 12.5 3 8.4 8.4 0 0 1 21 11.5z"/></svg>תגובות</a>
+  <a data-view="legacy"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7h18v3.5H3zM5 10.5v8.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8.5M9.5 14h5"/></svg>ותיקים</a>
   <a data-view="settings"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>הגדרות</a>
 </div>
 
@@ -952,11 +954,48 @@ async function loadInbox(){
   }catch(e){el.innerHTML='<div class="empty">שגיאה בטעינה</div>';}
 }
 
+/* ===== לקוחות ותיקים (טבלה נפרדת legacy_customers — לא מעורבב במועדון) ===== */
+let _legacyT;
+function legacySearch(v){ clearTimeout(_legacyT); _legacyT=setTimeout(()=>loadLegacy(v),300); }
+function renderLegacy(){ loadLegacy(''); return `<div class="view">
+  <div class="card" style="padding:14px 16px;margin-bottom:14px;border-right:3px solid var(--red)">
+    <div style="font-weight:800;margin-bottom:3px">מאגר לקוחות היסטורי — נפרד מהמועדון</div>
+    <div style="font-size:13px;color:var(--muted)">יובא מרשימת הלקוחות הוותיקה של החנות. <b>לא מקבלים דיוור אוטומטי</b> (אין הסכמה) — מאגר עיון/זיהוי בלבד, מופרד לחלוטין מחברי המועדון.</div>
+  </div>
+  <input id="legacy-q" oninput="legacySearch(this.value)" placeholder="חיפוש לפי שם או טלפון…" autocomplete="off"
+    style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;margin-bottom:12px;font-family:inherit;background:var(--card)">
+  <div class="card tbl-card" id="legacy-wrap"><div class="empty">טוען…</div></div>
+</div>`; }
+async function loadLegacy(q){
+  const el=$('#legacy-wrap');
+  let path='/rest/v1/legacy_customers?select=customer_no,full_name,phone,birthday,raw_text&order=full_name.asc&limit=300';
+  if(q&&q.trim()){ const e=encodeURIComponent('*'+q.trim()+'*'); path+=`&or=(full_name.ilike.${e},phone.ilike.${e})`; }
+  let rows=[],total='';
+  try{ const res=await sbFetch(path,{headers:{'Prefer':'count=exact'}}); rows=res.ok?await res.json():[]; const cr=res.headers.get('content-range'); if(cr)total=cr.split('/')[1]; }catch(e){}
+  const nb=$('#nav-legacy'); if(nb&&total&&!q) nb.textContent=(+total>999?(Math.floor(+total/1000)+'k'):total);
+  if(!el)return;
+  if(!rows.length){ el.innerHTML='<div class="empty">'+(q?'לא נמצאו תוצאות ל"'+q+'"':'אין לקוחות ותיקים במאגר.')+'</div>'; return; }
+  const esc=s=>(''+(s||'')).replace(/</g,'&lt;');
+  const bd=b=>b?b.split('-').reverse().join('/'):'—';
+  const trs=rows.map(r=>`<tr>
+     <td class="phone" style="color:var(--muted)">${r.customer_no||'—'}</td>
+     <td><div class="m-name"><div class="av" style="background:${avColor(r.full_name)}">${initials(r.full_name)}</div><span class="nm">${esc(r.full_name)||'—'}</span></div></td>
+     <td class="phone">${r.phone}</td>
+     <td>${bd(r.birthday)}</td>
+     <td style="color:var(--muted)">${esc(r.raw_text)}</td></tr>`).join('');
+  const cards=rows.map(r=>`<div style="padding:13px 14px;border-bottom:1px solid var(--line)">
+     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px"><div class="av" style="background:${avColor(r.full_name)}">${initials(r.full_name)}</div>
+       <div style="flex:1"><div style="font-weight:700">${esc(r.full_name)||'—'}</div><div class="phone" style="font-size:12px">${r.phone}</div></div></div>
+     <div style="font-size:12px;color:var(--muted)">#${r.customer_no||'—'} · ${bd(r.birthday)} · ${esc(r.raw_text)}</div></div>`).join('');
+  const note = total&&(+total>rows.length) ? `<div style="padding:11px 14px;font-size:12px;color:var(--muted);border-top:1px solid var(--line)">מציג ${rows.length} מתוך ${(+total).toLocaleString()} — חפש כדי לצמצם.</div>` : '';
+  el.innerHTML=`<table><thead><tr><th>מס׳</th><th>שם</th><th>טלפון</th><th>ת.לידה</th><th>עיר / כתובת</th></tr></thead><tbody>${trs}</tbody></table><div class="m-cards">${cards}</div>${note}`;
+}
+
 /* ===== router ===== */
-const TITLES={overview:['סקירה כללית','מבט על מצב המועדון'],members:['חברי מועדון','ניהול וחיפוש חברים'],send:['שליחת הודעות','ברודקאסט וטמפלטים'],history:['היסטוריית הודעות','כל ההודעות שנשלחו'],inbox:['תגובות','הודעות נכנסות מחברי המועדון'],settings:['הגדרות','הגדרות מערכת ואוטומציות']};
+const TITLES={overview:['סקירה כללית','מבט על מצב המועדון'],members:['חברי מועדון','ניהול וחיפוש חברים'],send:['שליחת הודעות','ברודקאסט וטמפלטים'],history:['היסטוריית הודעות','כל ההודעות שנשלחו'],inbox:['תגובות','הודעות נכנסות מחברי המועדון'],legacy:['לקוחות ותיקים','מאגר היסטורי — נפרד מהמועדון, ללא דיוור אוטומטי'],settings:['הגדרות','הגדרות מערכת ואוטומציות']};
 function render(){
   const v=state.view;
-  $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,history:renderHistory,inbox:renderInbox,settings:renderSettings}[v])();
+  $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,history:renderHistory,inbox:renderInbox,legacy:renderLegacy,settings:renderSettings}[v])();
   $('#pg-title').textContent=TITLES[v][0];$('#pg-crumb').textContent=TITLES[v][1];
   $('#nav-count').textContent=stats().total;
   $$('.nav-i').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
