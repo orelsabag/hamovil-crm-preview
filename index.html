@@ -967,13 +967,12 @@ function renderLegacy(){ loadLegacy(''); return `<div class="view">
   <div class="card tbl-card" id="legacy-wrap"><div class="empty">טוען…</div></div>
 </div>`; }
 async function loadLegacy(q){
-  const el=$('#legacy-wrap');
   let path='/rest/v1/legacy_customers?select=customer_no,full_name,phone,birthday,raw_text&order=full_name.asc&limit=300';
   if(q&&q.trim()){ const e=encodeURIComponent('*'+q.trim()+'*'); path+=`&or=(full_name.ilike.${e},phone.ilike.${e})`; }
   let rows=[],total='';
   try{ const res=await sbFetch(path,{headers:{'Prefer':'count=exact'}}); rows=res.ok?await res.json():[]; const cr=res.headers.get('content-range'); if(cr)total=cr.split('/')[1]; }catch(e){}
   const nb=$('#nav-legacy'); if(nb&&total&&!q) nb.textContent=(+total>999?(Math.floor(+total/1000)+'k'):total);
-  if(!el)return;
+  const el=$('#legacy-wrap'); if(!el)return;
   if(!rows.length){ el.innerHTML='<div class="empty">'+(q?'לא נמצאו תוצאות ל"'+q+'"':'אין לקוחות ותיקים במאגר.')+'</div>'; return; }
   const esc=s=>(''+(s||'')).replace(/</g,'&lt;');
   const bd=b=>b?b.split('-').reverse().join('/'):'—';
