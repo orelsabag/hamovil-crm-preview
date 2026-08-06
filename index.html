@@ -962,8 +962,6 @@ function renderLegacy(){ loadLegacy(''); return `<div class="view">
     <div style="font-weight:800;margin-bottom:3px">מאגר לקוחות היסטורי — נפרד מהמועדון</div>
     <div style="font-size:13px;color:var(--muted)">יובא מרשימת הלקוחות הוותיקה של החנות. <b>לא מקבלים דיוור אוטומטי</b> (אין הסכמה) — מאגר עיון/זיהוי בלבד, מופרד לחלוטין מחברי המועדון.</div>
   </div>
-  <input id="legacy-q" oninput="legacySearch(this.value)" placeholder="חיפוש לפי שם או טלפון…" autocomplete="off"
-    style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:12px;font-size:14px;margin-bottom:12px;font-family:inherit;background:var(--card)">
   <div class="card tbl-card" id="legacy-wrap"><div class="empty">טוען…</div></div>
 </div>`; }
 async function loadLegacy(q){
@@ -996,6 +994,7 @@ function render(){
   const v=state.view;
   $('#content').innerHTML=({overview:renderOverview,members:renderMembers,send:renderSend,history:renderHistory,inbox:renderInbox,legacy:renderLegacy,settings:renderSettings}[v])();
   $('#pg-title').textContent=TITLES[v][0];$('#pg-crumb').textContent=TITLES[v][1];
+  {const _sb=$('#search');if(_sb)_sb.placeholder=(v==='legacy'?'חיפוש בלקוחות ותיקים…':'חיפוש חבר לפי שם או טלפון…');}
   $('#nav-count').textContent=stats().total;
   $$('.nav-i').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
   $$('.botnav a').forEach(a=>a.classList.toggle('on',a.dataset.view===v));
@@ -1006,7 +1005,7 @@ function render(){
 function go(v){state.view=v;state.q='';$('#search').value='';window.scrollTo(0,0);render();}
 function setFilter(k,val){state[k]=val;render();}
 $$('[data-view]').forEach(el=>el.addEventListener('click',()=>go(el.dataset.view)));
-$('#search').addEventListener('input',e=>{state.q=e.target.value;if(state.view!=='members'){state.view='members';}render();});
+$('#search').addEventListener('input',e=>{const q=e.target.value;if(state.view==='legacy'){legacySearch(q);return;}state.q=q;if(state.view!=='members'){state.view='members';}render();});
 
 /* ===== auth boot ===== */
 function injectLogin(){
