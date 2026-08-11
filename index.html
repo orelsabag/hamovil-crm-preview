@@ -786,7 +786,6 @@ function openMember(id){
     </div>
     <div class="dr-foot" style="flex-wrap:wrap">
       <button class="btn btn-red" onclick="quickReview('${m.id}')" style="flex:1 1 100%"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="m12 2 3 6.5 7 .6-5.3 4.6L18.3 21 12 17.3 5.7 21l1.6-7.3L2 9.1l7-.6L12 2z"/></svg>שלח תודה + בקשת ביקורת בגוגל</button>
-      <button class="btn btn-ghost" onclick="quickSend('${m.id}')" style="flex:1"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>הודעה</button>
       <button class="btn btn-ghost" onclick="editMember('${m.id}')" style="flex:1"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>ערוך</button>
       <button class="btn btn-ghost" onclick="toggleOut('${m.id}')" style="flex:1">${m.status==='active'?'הסר מדיוור':'החזר'}</button>
     </div>`;
