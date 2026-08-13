@@ -631,6 +631,7 @@ function renderMembers(){
 }
 
 function renderSend(){
+  loadBcastTemplates();
   return `<div class="view">
     <div class="grid-2">
       <div class="card panel">
@@ -650,10 +651,8 @@ function renderSend(){
           </div>
         </div>
         <div class="field"><label>תבנית הודעה</label><select class="selct" style="width:100%" id="snd-tpl" onchange="updatePreview()">
-          <option value="welcome">🎉 ברוכים הבאים למועדון</option>
-          <option value="bday">🎂 ברכת יום הולדת</option>
-          <option value="deal">🔒 מבצע סודי לחברי מועדון</option>
           <option value="review">⭐ תודה על הקנייה + ביקורת גוגל</option>
+          <option value="welcome">🎉 ברוכים הבאים (נמען יחיד בלבד)</option>
         </select></div>
         <div class="field"><label>טקסט ההודעה</label><textarea id="snd-txt" oninput="updatePreview()"></textarea></div>
         <button class="btn btn-red" style="width:100%;justify-content:center" onclick="doSend()">
@@ -669,7 +668,46 @@ function renderSend(){
         <p style="font-size:12.5px;color:var(--muted);margin-top:12px;text-align:center">התמונה והטקסט נשלחים דרך WhatsApp Business הרשמי מהמספר 050-2800006</p>
       </div>
     </div>
+    <div class="card panel" style="margin-top:16px">
+      <div class="panel-h"><h3>תבניות מותאמות אישית</h3></div>
+      <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">כתבו הודעה → נשלחת אוטומטית לאישור מטא → אחרי שאושרה אפשר לשדר אותה למועדון. (אי אפשר לשדר טקסט חופשי בלי אישור — זה חוק וואטסאפ.)</p>
+      <div class="field"><label>שם התבנית (לזיהוי פנימי)</label><input id="bt-title" placeholder="למשל: מבצע פסח"></div>
+      <div class="field"><label>תוכן ההודעה</label><textarea id="bt-body" placeholder="כתבו את ההודעה שתרצו לשדר… אפשר להשתמש ב-{{שם}} כדי לפנות לחבר בשמו."></textarea>
+        <div style="font-size:12px;color:var(--muted);margin-top:5px">💡 {{שם}} יוחלף בשם החבר. אישור מטא לוקח בין כמה דקות ליממה.</div></div>
+      <button class="btn btn-ghost" onclick="submitTemplate()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>שלח לאישור מטא</button>
+      <div id="bcast-list" style="margin-top:16px"><div class="empty" style="padding:12px">טוען…</div></div>
+    </div>
   </div>`;
+}
+let _bcastTpls=[];
+async function loadBcastTemplates(){
+  let rows=[];
+  try{ const res=await sbFetch('/rest/v1/broadcast_templates?select=*&order=created_at.desc'); rows=res.ok?await res.json():[]; }catch(e){}
+  _bcastTpls=rows;
+  const sel=$('#snd-tpl');
+  if(sel){ [...sel.querySelectorAll('option[data-bcast]')].forEach(o=>o.remove());
+    rows.filter(t=>t.status==='approved').forEach(t=>{const o=document.createElement('option');o.value=t.meta_name;o.dataset.bcast='1';o.textContent='📣 '+t.title;sel.appendChild(o);}); }
+  const el=$('#bcast-list'); if(!el)return;
+  if(!rows.length){ el.innerHTML='<div class="empty" style="padding:12px">אין תבניות עדיין. כתבו הודעה ושלחו לאישור.</div>'; return; }
+  const esc=s=>(''+(s||'')).replace(/</g,'&lt;');
+  const bd=s=>({submit:['📤 נשלח…','#6b7280','#f3f4f6'],pending:['⏳ ממתין לאישור מטא','#b45309','#fef3c7'],approved:['✅ אושר — מוכן לשידור','#059669','#d1fae5'],rejected:['❌ נדחה','#dc2626','#fee2e2'],error:['⚠️ שגיאה','#dc2626','#fee2e2']}[s]||['—','#6b7280','#f3f4f6']);
+  el.innerHTML=rows.map(t=>{const[lbl,fg,bg]=bd(t.status);return `<div style="padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(t.title)}</b><span style="background:${bg};color:${fg};border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap">${lbl}</span></div>
+    <div style="font-size:13px;color:var(--muted);margin-top:6px;white-space:pre-wrap">${esc(t.body)}</div>
+    ${t.status==='rejected'&&t.reason?`<div style="font-size:12px;color:#dc2626;margin-top:6px">סיבת דחייה: ${esc(t.reason)}</div>`:''}
+    ${t.status==='approved'?'<div style="font-size:12px;color:#059669;margin-top:6px">↑ בחרו אותה למעלה ב"תבנית הודעה" כדי לשדר</div>':''}</div>`;}).join('');
+}
+async function submitTemplate(){
+  const title=($('#bt-title').value||'').trim(), body=($('#bt-body').value||'').trim();
+  if(!title||!body){toast('נא למלא שם ותוכן');return;}
+  if(body.length>900){toast('ההודעה ארוכה מדי (עד 900 תווים)');return;}
+  try{
+    const res=await sbFetch('/rest/v1/broadcast_templates',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({title,body,status:'submit'})});
+    if(!res.ok)throw new Error(res.status);
+    $('#bt-title').value='';$('#bt-body').value='';
+    toast('נשלח לאישור מטא ✓');
+    setTimeout(loadBcastTemplates,1200);
+  }catch(e){toast('שגיאה בשליחה');}
 }
 const REVIEW_LINK='https://search.google.com/local/writereview?placeid=ChIJaRg9uZUzHBUR_FX2pn-wLjk';
 const GROUP_LINK='https://chat.whatsapp.com/FF8fKP1nLOFKoMf8c8BE5c';   // קבוצת המבצעים הסודית
@@ -681,10 +719,13 @@ const TEMPLATES={
   review:{img:'assets/review.png',txt:'תודה שקנית אצלנו, {שם}! 🙏\nהיה לנו כיף לשרת אותך. נשמח מאוד אם תשאיר לנו ביקורת קצרה בגוגל — זה עוזר לנו המון:\n'+REVIEW_LINK},
 };
 function updatePreview(){
-  const tpl=$('#snd-tpl').value, t=TEMPLATES[tpl];
+  const tpl=$('#snd-tpl').value; let t=TEMPLATES[tpl];
+  if(!t){const bt=_bcastTpls.find(x=>x.meta_name===tpl); t=bt?{img:'assets/card.png',txt:bt.body}:null;}
+  if(!t)return;
   const ta=$('#snd-txt');
   if(ta&&(!ta.value||ta.dataset.tpl!==tpl)){ta.value=t.txt;ta.dataset.tpl=tpl;}
-  $('#pv-txt').textContent=(ta?ta.value:t.txt).replace('{שם}',recipientName()||'אחמד');
+  const _s=recipientName()||'אחמד';
+  $('#pv-txt').textContent=(ta?ta.value:t.txt).replace('{שם}',_s).replace('{{שם}}',_s);
   const img=$('#pv-img');
   if(t.img){img.src=t.img;img.style.display='';}else{img.style.display='none';}
 }
@@ -720,7 +761,10 @@ function pickRecipient(i){
 }
 function clearRecipient(){chosenRecip=null;const c=$('#single-chip');if(c)c.classList.remove('show');const inp=$('#single-inp');if(inp)inp.value='';const d=$('#single-res');if(d)d.classList.remove('show');}
 async function doSend(){
-  const aud=$('#snd-aud').value, tplKey=$('#snd-tpl').value, tpl=TEMPLATES[tplKey];
+  const aud=$('#snd-aud').value, tplKey=$('#snd-tpl').value;
+  let tpl=TEMPLATES[tplKey];
+  if(!tpl){const bt=_bcastTpls.find(t=>t.meta_name===tplKey&&t.status==='approved'); if(bt)tpl={txt:bt.body,img:null};}
+  if(!tpl){toast('בחר תבנית מאושרת לשליחה');return;}
   let targets=[];
   if(aud==='single'){
     if(!chosenRecip){toast('בחר נמען מהרשימה או הקלד מספר');return;}
