@@ -653,7 +653,6 @@ function renderSend(){
         <div class="field"><label>תבנית הודעה (מאושרות בלבד)</label><select class="selct" style="width:100%" id="snd-tpl" onchange="updatePreview()">
           <option value="">— בחר תבנית מאושרת —</option>
         </select></div>
-        <div class="field"><label>טקסט ההודעה</label><textarea id="snd-txt" oninput="updatePreview()"></textarea></div>
         <button class="btn btn-red" style="width:100%;justify-content:center" onclick="doSend()">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5M21 3l-6.5 18-4-8-8-4L21 3z"/></svg>שליחה בוואטסאפ</button>
       </div>
@@ -728,10 +727,8 @@ function updatePreview(){
     t={img: sys?TEMPLATES[sys].img:null, txt:bt.body};
   } else { t=TEMPLATES[tpl]||null; }       // fallback ישן
   if(!t)return;
-  const ta=$('#snd-txt');
-  if(ta&&(!ta.value||ta.dataset.tpl!==tpl)){ta.value=t.txt;ta.dataset.tpl=tpl;}
   const _s=recipientName()||'אחמד';
-  $('#pv-txt').textContent=(ta?ta.value:t.txt).replaceAll('{{שם}}',_s).replaceAll('{שם}',_s);
+  $('#pv-txt').textContent=t.txt.replaceAll('{{שם}}',_s).replaceAll('{שם}',_s);
   const img=$('#pv-img');
   if(t.img){img.src=t.img;img.style.display='';}else{img.style.display='none';}
 }
