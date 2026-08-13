@@ -650,9 +650,8 @@ function renderSend(){
             <div id="single-chip"></div>
           </div>
         </div>
-        <div class="field"><label>תבנית הודעה</label><select class="selct" style="width:100%" id="snd-tpl" onchange="updatePreview()">
-          <option value="review">⭐ תודה על הקנייה + ביקורת גוגל</option>
-          <option value="welcome">🎉 ברוכים הבאים (נמען יחיד בלבד)</option>
+        <div class="field"><label>תבנית הודעה (מאושרות בלבד)</label><select class="selct" style="width:100%" id="snd-tpl" onchange="updatePreview()">
+          <option value="">— בחר תבנית מאושרת —</option>
         </select></div>
         <div class="field"><label>טקסט ההודעה</label><textarea id="snd-txt" oninput="updatePreview()"></textarea></div>
         <button class="btn btn-red" style="width:100%;justify-content:center" onclick="doSend()">
@@ -762,28 +761,28 @@ function pickRecipient(i){
 function clearRecipient(){chosenRecip=null;const c=$('#single-chip');if(c)c.classList.remove('show');const inp=$('#single-inp');if(inp)inp.value='';const d=$('#single-res');if(d)d.classList.remove('show');}
 async function doSend(){
   const aud=$('#snd-aud').value, tplKey=$('#snd-tpl').value;
-  let tpl=TEMPLATES[tplKey];
-  if(!tpl){const bt=_bcastTpls.find(t=>t.meta_name===tplKey&&t.status==='approved'); if(bt)tpl={txt:bt.body,img:null};}
-  if(!tpl){toast('בחר תבנית מאושרת לשליחה');return;}
+  const bt=_bcastTpls.find(t=>t.meta_name===tplKey&&t.status==='approved');
+  if(!bt){toast('בחר תבנית מאושרת לשליחה');return;}
+  const sendKind=bt.system_kind||bt.meta_name;
+  const tpl={txt:bt.body,img:null};
   let targets=[];
   if(aud==='single'){
     if(!chosenRecip){toast('בחר נמען מהרשימה או הקלד מספר');return;}
     targets=[{phone:chosenRecip.phone, name:chosenRecip.name==='__raw__'?'':chosenRecip.name}];
   } else {
     // "ברוכים הבאים" נשלחת אוטומטית רק לחברים חדשים — אסור לשדר אותה לכל המועדון
-    if(tplKey==='welcome'){ alert('⚠️ אי אפשר לשלוח "ברוכים הבאים" בשליחה קבוצתית.\nההודעה הזו נשלחת אוטומטית רק לחברים חדשים.\nלשליחה חד-פעמית בחר "נמען יחיד".'); return; }
+    if(bt.system_kind==='welcome'){ alert('⚠️ אי אפשר לשדר "ברוכים הבאים" לכל המועדון — היא נשלחת אוטומטית רק לחברים חדשים.\nלשליחה חד-פעמית בחר "נמען יחיד".'); return; }
     let d=Store.all().filter(m=>m.status==='active');
     if(aud==='private')d=d.filter(m=>m.type==='private');
     else if(aud==='pro')d=d.filter(m=>m.type==='pro');
     else if(aud==='bday')d=d.filter(isBdayThisMonth);
     targets=d.map(m=>({phone:m.phone,name:m.name}));
     if(!targets.length){toast('אין נמענים תואמים');return;}
-    const tplName=(document.querySelector('#snd-tpl option:checked')||{}).textContent||tplKey;
-    if(!confirm('⚠️ שליחה המונית ל-'+targets.length+' חברים\nתבנית: '+tplName.trim()+'\n\nזו פעולה שאי אפשר לבטל. לאשר?')) return;
+    if(!confirm('⚠️ שליחה המונית ל-'+targets.length+' חברים\nתבנית: '+bt.title+'\n\nזו פעולה שאי אפשר לבטל. לאשר?')) return;
   }
   if(!targets.length){toast('אין נמענים תואמים');return;}
   let ok=0;
-  for(const t of targets){ try{ await enqueueOne(t.phone,t.name,tplKey,tpl); ok++; }catch(e){} }
+  for(const t of targets){ try{ await enqueueOne(t.phone,t.name,sendKind,tpl); ok++; }catch(e){} }
   toast(ok+' הודעות נכנסו לתור השליחה — יישלחו תוך דקה ✓');
 }
 
