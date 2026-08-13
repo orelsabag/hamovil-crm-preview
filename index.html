@@ -726,11 +726,16 @@ async function doSend(){
     if(!chosenRecip){toast('בחר נמען מהרשימה או הקלד מספר');return;}
     targets=[{phone:chosenRecip.phone, name:chosenRecip.name==='__raw__'?'':chosenRecip.name}];
   } else {
+    // "ברוכים הבאים" נשלחת אוטומטית רק לחברים חדשים — אסור לשדר אותה לכל המועדון
+    if(tplKey==='welcome'){ alert('⚠️ אי אפשר לשלוח "ברוכים הבאים" בשליחה קבוצתית.\nההודעה הזו נשלחת אוטומטית רק לחברים חדשים.\nלשליחה חד-פעמית בחר "נמען יחיד".'); return; }
     let d=Store.all().filter(m=>m.status==='active');
     if(aud==='private')d=d.filter(m=>m.type==='private');
     else if(aud==='pro')d=d.filter(m=>m.type==='pro');
     else if(aud==='bday')d=d.filter(isBdayThisMonth);
     targets=d.map(m=>({phone:m.phone,name:m.name}));
+    if(!targets.length){toast('אין נמענים תואמים');return;}
+    const tplName=(document.querySelector('#snd-tpl option:checked')||{}).textContent||tplKey;
+    if(!confirm('⚠️ שליחה המונית ל-'+targets.length+' חברים\nתבנית: '+tplName.trim()+'\n\nזו פעולה שאי אפשר לבטל. לאשר?')) return;
   }
   if(!targets.length){toast('אין נמענים תואמים');return;}
   let ok=0;
@@ -838,7 +843,10 @@ async function enqueueOne(phone,name,kind,tpl){
   if(!res.ok) throw new Error('enqueue '+res.status);
 }
 async function quickSend(id){const m=Store.all().find(x=>x.id===id);try{await enqueueOne(m.phone,m.name,'welcome',TEMPLATES.welcome);toast('ברוכים הבאים יישלח ל'+m.name.split(' ')[0]+' ✓');}catch(e){toast('שגיאה בשליחה');}}
-async function quickReview(id){const m=Store.all().find(x=>x.id===id);try{await enqueueOne(m.phone,m.name,'review',TEMPLATES.review);await sbFetch('/rest/v1/members?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({review_sent_at:'now()'})});m.review_sent=true;openMember(id);toast('תודה + ביקורת (עם תמונה) יישלח ל'+m.name.split(' ')[0]+' ✓');}catch(e){toast('שגיאה בשליחה');}}
+async function quickReview(id){const m=Store.all().find(x=>x.id===id);
+  if(m.review_sent){toast('בקשת ביקורת כבר נשלחה ל'+m.name.split(' ')[0]);return;}
+  m.review_sent=true; // אופטימי — מונע לחיצה כפולה
+  try{await enqueueOne(m.phone,m.name,'review',TEMPLATES.review);await sbFetch('/rest/v1/members?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({review_sent_at:'now()'})});openMember(id);toast('תודה + ביקורת (עם תמונה) יישלח ל'+m.name.split(' ')[0]+' ✓');}catch(e){m.review_sent=false;toast('שגיאה בשליחה');}}
 async function toggleOut(id){const m=Store.all().find(x=>x.id===id);const ns=m.status==='active'?'opted_out':'active';try{await Store.update(id,{status:ns});}catch(e){toast('שגיאה בעדכון');return;}toast(ns==='active'?'הוחזר לדיוור':'הוסר מדיוור');closeDrawer();render();}
 
 /* ===== add modal ===== */
