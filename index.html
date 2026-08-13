@@ -687,14 +687,15 @@ async function loadBcastTemplates(){
   if(sel){ [...sel.querySelectorAll('option[data-bcast]')].forEach(o=>o.remove());
     rows.filter(t=>t.status==='approved').forEach(t=>{const o=document.createElement('option');o.value=t.meta_name;o.dataset.bcast='1';o.textContent='📣 '+t.title;sel.appendChild(o);}); }
   const el=$('#bcast-list'); if(!el)return;
-  if(!rows.length){ el.innerHTML='<div class="empty" style="padding:12px">אין תבניות עדיין. כתבו הודעה ושלחו לאישור.</div>'; return; }
+  // מאושרות כבר מופיעות למעלה (דרופדאון + תצוגה מקדימה) — כאן רק תבניות בהמתנה/נדחו כדי לעקוב אחרי הסטטוס
+  const inflight=rows.filter(t=>t.status!=='approved');
+  if(!inflight.length){ el.innerHTML='<div class="empty" style="padding:12px">אין תבניות בהמתנה. תבניות מאושרות זמינות לשידור למעלה ב"תבנית הודעה".</div>'; return; }
   const esc=s=>(''+(s||'')).replace(/</g,'&lt;');
-  const bd=s=>({submit:['📤 נשלח…','#6b7280','#f3f4f6'],pending:['⏳ ממתין לאישור מטא','#b45309','#fef3c7'],approved:['✅ אושר — מוכן לשידור','#059669','#d1fae5'],rejected:['❌ נדחה','#dc2626','#fee2e2'],error:['⚠️ שגיאה','#dc2626','#fee2e2']}[s]||['—','#6b7280','#f3f4f6']);
-  el.innerHTML=rows.map(t=>{const[lbl,fg,bg]=bd(t.status);return `<div style="padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
+  const bd=s=>({submit:['📤 נשלח…','#6b7280','#f3f4f6'],pending:['⏳ ממתין לאישור מטא','#b45309','#fef3c7'],rejected:['❌ נדחה','#dc2626','#fee2e2'],error:['⚠️ שגיאה','#dc2626','#fee2e2']}[s]||['—','#6b7280','#f3f4f6']);
+  el.innerHTML=inflight.map(t=>{const[lbl,fg,bg]=bd(t.status);return `<div style="padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(t.title)}</b><span style="background:${bg};color:${fg};border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap">${lbl}</span></div>
     <div style="font-size:13px;color:var(--muted);margin-top:6px;white-space:pre-wrap">${esc(t.body)}</div>
-    ${t.status==='rejected'&&t.reason?`<div style="font-size:12px;color:#dc2626;margin-top:6px">סיבת דחייה: ${esc(t.reason)}</div>`:''}
-    ${t.status==='approved'?'<div style="font-size:12px;color:#059669;margin-top:6px">↑ בחרו אותה למעלה ב"תבנית הודעה" כדי לשדר</div>':''}</div>`;}).join('');
+    ${t.status==='rejected'&&t.reason?`<div style="font-size:12px;color:#dc2626;margin-top:6px">סיבת דחייה: ${esc(t.reason)}</div>`:''}</div>`;}).join('');
 }
 async function submitTemplate(){
   const title=($('#bt-title').value||'').trim(), body=($('#bt-body').value||'').trim();
