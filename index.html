@@ -235,6 +235,23 @@
   /* send preview */
   .wa-preview{background:#e5ddd5;border-radius:14px;padding:16px;position:relative;overflow:hidden}
   .wa-preview::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(0,0,0,.03) 1px,transparent 1px);background-size:14px 14px}
+  /* custom-template approval flow */
+  .tpl-flow{display:flex;align-items:stretch;gap:8px;margin:4px 0 12px}
+  .tpl-step{flex:1;display:flex;align-items:center;gap:10px;background:var(--line-2);border:1px solid var(--line);border-radius:13px;padding:10px 12px;min-width:0}
+  .tpl-ic{flex:none;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--navy-soft);color:var(--navy)}
+  .tpl-ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tpl-ic.ok{background:#ecfdf5;color:#059669}
+  .tpl-ic.go{background:var(--red-soft);color:var(--red)}
+  .tpl-tx{min-width:0}
+  .tpl-tx b{display:block;font-size:13px;color:var(--ink);font-weight:800;line-height:1.25}
+  .tpl-tx span{display:block;font-size:11px;color:var(--muted);line-height:1.3;margin-top:1px}
+  .tpl-arr{flex:none;align-self:center;color:var(--faint)}
+  .tpl-arr svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;display:block}
+  .tpl-rule{display:flex;align-items:center;gap:9px;background:var(--navy-soft);border:1px solid #dbe4f2;border-radius:12px;padding:10px 13px;margin:0 0 14px}
+  .tpl-rule svg{flex:none;width:17px;height:17px;fill:none;stroke:var(--navy);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .tpl-rule span{font-size:12.5px;color:var(--navy-2);line-height:1.45}
+  .tpl-rule b{font-weight:800}
+  @media(max-width:560px){ .tpl-flow{flex-direction:column} .tpl-arr{transform:rotate(-90deg)} }
   .wa-bubble{position:relative;background:#fff;border-radius:12px;border-top-right-radius:3px;padding:12px 13px;box-shadow:0 1px 1px rgba(0,0,0,.13);max-width:88%;margin-inline-start:auto}
   .wa-bubble img{border-radius:8px;margin-bottom:8px}
   .wa-bubble .txt{font-size:13.5px;color:#111;line-height:1.5;white-space:pre-line}
@@ -668,11 +685,18 @@ function renderSend(){
     </div>
     <div class="card panel" style="margin-top:16px">
       <div class="panel-h"><h3>תבניות מותאמות אישית</h3></div>
-      <p style="font-size:12.5px;color:var(--muted);margin:0 0 12px">כתבו הודעה → נשלחת אוטומטית לאישור מטא → אחרי שאושרה אפשר לשדר אותה למועדון. (אי אפשר לשדר טקסט חופשי בלי אישור — זה חוק וואטסאפ.)</p>
+      <div class="tpl-flow">
+        <div class="tpl-step"><div class="tpl-ic"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg></div><div class="tpl-tx"><b>כתבו הודעה</b><span>נסחו מה לשדר</span></div></div>
+        <div class="tpl-arr"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="tpl-step"><div class="tpl-ic ok"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div><div class="tpl-tx"><b>אישור מטא</b><span>אוטומטי · דקות–יממה</span></div></div>
+        <div class="tpl-arr"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="tpl-step"><div class="tpl-ic go"><svg viewBox="0 0 24 24"><path d="M3 11l18-5v12L3 14z"/><path d="M11.5 16.6a2.5 2.5 0 0 1-4.8-1.1"/></svg></div><div class="tpl-tx"><b>שדרו למועדון</b><span>ברגע שאושרה</span></div></div>
+      </div>
+      <div class="tpl-rule"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>אי אפשר לשדר טקסט חופשי בלי אישור — <b>זה חוק של וואטסאפ.</b></span></div>
       <div class="field"><label>שם התבנית (לזיהוי פנימי)</label><input id="bt-title" placeholder="למשל: מבצע פסח"></div>
       <div class="field"><label>תוכן ההודעה</label><textarea id="bt-body" placeholder="כתבו את ההודעה שתרצו לשדר… אפשר להשתמש ב-{{שם}} כדי לפנות לחבר בשמו."></textarea>
         <div style="font-size:12px;color:var(--muted);margin-top:5px">💡 {{שם}} יוחלף בשם החבר. אישור מטא לוקח בין כמה דקות ליממה.</div></div>
-      <button class="btn btn-ghost" onclick="submitTemplate()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>שלח לאישור מטא</button>
+      <button class="btn btn-ghost" onclick="submitTemplate()"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>שלח לאישור מטא</button>
       <div id="bcast-list" style="margin-top:16px"><div class="empty" style="padding:12px">טוען…</div></div>
     </div>
   </div>`;
