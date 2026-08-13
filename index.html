@@ -719,13 +719,18 @@ const TEMPLATES={
   review:{img:'assets/review.png',txt:'תודה שקנית אצלנו, {שם}! 🙏\nהיה לנו כיף לשרת אותך. נשמח מאוד אם תשאיר לנו ביקורת קצרה בגוגל — זה עוזר לנו המון:\n'+REVIEW_LINK},
 };
 function updatePreview(){
-  const tpl=$('#snd-tpl').value; let t=TEMPLATES[tpl];
-  if(!t){const bt=_bcastTpls.find(x=>x.meta_name===tpl); t=bt?{img:'assets/card.png',txt:bt.body}:null;}
+  const tpl=$('#snd-tpl').value;
+  const bt=_bcastTpls.find(x=>x.meta_name===tpl);
+  let t;
+  if(bt){                                 // תבנית מהסנכרון: מערכת → התמונה שלה, מותאמת → בלי תמונה (נשלחת כטקסט)
+    const sys={welcome:'welcome',birthday:'bday',review:'review'}[bt.system_kind];
+    t={img: sys?TEMPLATES[sys].img:null, txt:bt.body};
+  } else { t=TEMPLATES[tpl]||null; }       // fallback ישן
   if(!t)return;
   const ta=$('#snd-txt');
   if(ta&&(!ta.value||ta.dataset.tpl!==tpl)){ta.value=t.txt;ta.dataset.tpl=tpl;}
   const _s=recipientName()||'אחמד';
-  $('#pv-txt').textContent=(ta?ta.value:t.txt).replace('{שם}',_s).replace('{{שם}}',_s);
+  $('#pv-txt').textContent=(ta?ta.value:t.txt).replaceAll('{{שם}}',_s).replaceAll('{שם}',_s);
   const img=$('#pv-img');
   if(t.img){img.src=t.img;img.style.display='';}else{img.style.display='none';}
 }
