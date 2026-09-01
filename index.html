@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#1B3A6B">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="המוביל CRM">
 <title>מועדון המוביל סנטר — מערכת ניהול חברים</title>
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1013,7 +1019,8 @@ function printQR(){
       <img class="qr" src="${o}/assets/join-qr.png">
       <div class="cta">📱 סרקו את הקוד והצטרפו — חינם, ב-20 שניות</div>
       <div class="foot">המוביל סנטר · כניסה ראשית דיר אל אסד-בענה</div>
-    </body></html>`);
+    <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body></html>`);
   w.document.close();
 }
 
@@ -1234,5 +1241,6 @@ async function boot(){
 }
 boot();
 </script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>
 </html>

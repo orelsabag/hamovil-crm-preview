@@ -1,0 +1,16 @@
+{
+  "name": "מועדון המוביל סנטר — ניהול חברים",
+  "short_name": "המוביל CRM",
+  "description": "מערכת ניהול חברי מועדון המוביל סנטר",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8fc",
+  "theme_color": "#1B3A6B",
+  "icons": [
+    { "src": "/assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
