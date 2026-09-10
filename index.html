@@ -500,12 +500,17 @@ function toast(t){const el=$('#toast');$('#toast-t').textContent=t;el.classList.
 /* ===== stats ===== */
 function stats(){
   const d=Store.all();
-  const wk=new Date(now); wk.setDate(wk.getDate()-7);
-  const mo=new Date(now); mo.setMonth(mo.getMonth()-1);
+  // date-only boundaries (YYYY-MM-DD lexicographic) — TZ-immune, matches the
+  // daily WhatsApp cron: newWeek = last 7 days, newMonth = since the 1st.
+  const pad=n=>String(n).padStart(2,'0');
+  const dStr=dt=>dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+  const monthStart=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-01';
+  const wkDt=new Date(now); wkDt.setDate(wkDt.getDate()-7);
+  const weekAgo=dStr(wkDt);
   return {
     total:d.length,
-    newWeek:d.filter(m=>new Date(m.joined)>=wk).length,
-    newMonth:d.filter(m=>new Date(m.joined)>=mo).length,
+    newWeek:d.filter(m=>(m.joined||'')>=weekAgo).length,
+    newMonth:d.filter(m=>(m.joined||'')>=monthStart).length,
     bdays:d.filter(isBdayThisMonth).length,
     pro:d.filter(m=>m.type==='pro').length,
     priv:d.filter(m=>m.type==='private').length,
