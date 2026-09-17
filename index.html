@@ -1060,6 +1060,14 @@ function printQR(){
 
 /* ===== היסטוריית הודעות ===== */
 const KIND_LBL={welcome:'ברוכים הבאים',birthday:'יום הולדת',review:'תודה + ביקורת',deal:'מבצע',custom:'הודעה'};
+// תבניות שידור: kind ב-message_log = meta_name (club_bcast_…) → ממפים לשם התבנית לתצוגה
+let _bcastTitles={};
+async function loadBcastTitles(){
+  try{ const res=await sbFetch('/rest/v1/broadcast_templates?select=meta_name,title');
+    (res.ok?await res.json():[]).forEach(t=>{ if(t.meta_name) _bcastTitles[t.meta_name]=t.title; });
+  }catch(e){}
+  return _bcastTitles;
+}
 function fmtDateTime(iso){try{const d=new Date(iso);return d.toLocaleDateString('he-IL')+' · '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
 function renderHistory(){ loadHistory(); return `<div class="view"><div class="card tbl-card" id="hist-wrap"><div class="empty">טוען היסטוריה…</div></div></div>`; }
 async function loadHistory(){
@@ -1069,20 +1077,21 @@ async function loadHistory(){
     rows=res.ok?await res.json():[];
   }catch(e){}
   const el=$('#hist-wrap'); if(!el)return;
+  await loadBcastTitles();
   try{
     if(!rows.length){el.innerHTML='<div class="empty">עדיין לא נשלחו הודעות. כאן תופיע כל הודעה שנשלחה — אוטומטית או ידנית.</div>';return;}
     const badge=r=>r.status==='sent'?'<span class="tag act">נשלח</span>':'<span class="tag out">נכשל</span>';
     const trs=rows.map(r=>`<tr>
       <td><div class="m-name"><div class="av" style="background:${avColor(r.to_name||r.to_phone)}">${initials(r.to_name||'?')}</div><span class="nm">${r.to_name||'—'}</span></div></td>
       <td class="phone">${r.to_phone}</td>
-      <td>${KIND_LBL[r.kind]||r.kind||'—'}</td>
+      <td>${KIND_LBL[r.kind]||_bcastTitles[r.kind]||r.kind||'—'}</td>
       <td>${badge(r)}</td>
       <td style="color:var(--muted);font-weight:600;white-space:nowrap">${fmtDateTime(r.created_at)}</td>
     </tr>`).join('');
     const cards=rows.map(r=>`<div style="padding:13px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
       <div class="av" style="background:${avColor(r.to_name||r.to_phone)}">${initials(r.to_name||'?')}</div>
       <div style="flex:1;min-width:0"><div style="font-weight:700">${r.to_name||'—'}</div>
-        <div style="font-size:12px;color:var(--muted)">${KIND_LBL[r.kind]||r.kind||''} · ${fmtDateTime(r.created_at)}</div></div>${badge(r)}</div>`).join('');
+        <div style="font-size:12px;color:var(--muted)">${KIND_LBL[r.kind]||_bcastTitles[r.kind]||r.kind||''} · ${fmtDateTime(r.created_at)}</div></div>${badge(r)}</div>`).join('');
     el.innerHTML=`<table><thead><tr><th>נמען</th><th>טלפון</th><th>סוג הודעה</th><th>סטטוס</th><th>מתי</th></tr></thead><tbody>${trs}</tbody></table>
       <div class="m-cards">${cards}</div>`;
   }catch(e){el.innerHTML='<div class="empty">שגיאה בטעינת ההיסטוריה</div>';}
@@ -1094,7 +1103,8 @@ async function loadMemberHistory(id){
       sbFetch('/rest/v1/message_log?select=kind,status,created_at&member_id=eq.'+id+'&order=created_at.desc&limit=50'),
       sbFetch('/rest/v1/inbound_messages?select=body,created_at&member_id=eq.'+id+'&order=created_at.desc&limit=50')
     ]);
-    const out=(outR.ok?await outR.json():[]).map(r=>({d:'out',t:r.created_at,label:KIND_LBL[r.kind]||r.kind||'הודעה',ok:r.status==='sent'}));
+    await loadBcastTitles();
+    const out=(outR.ok?await outR.json():[]).map(r=>({d:'out',t:r.created_at,label:KIND_LBL[r.kind]||_bcastTitles[r.kind]||r.kind||'הודעה',ok:r.status==='sent'}));
     const inb=(inR.ok?await inR.json():[]).map(r=>({d:'in',t:r.created_at,label:(r.body||'(ללא טקסט)')}));
     const all=[...out,...inb].sort((a,b)=>new Date(b.t)-new Date(a.t)).slice(0,60);
     if(!all.length){el.innerHTML='<div class="tl-i pending"><div class="tt">אין הודעות עדיין</div><div class="td">הודעות ותגובות יופיעו כאן</div></div>';return;}
