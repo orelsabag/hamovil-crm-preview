@@ -258,6 +258,14 @@
   .tpl-rule span{font-size:12.5px;color:var(--navy-2);line-height:1.45}
   .tpl-rule b{font-weight:800}
   @media(max-width:560px){ .tpl-flow{flex-direction:column} .tpl-arr{transform:rotate(-90deg)} }
+  .tpl-img-pick{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .tpl-img-pick .btn svg{width:17px;height:17px}
+  .tpl-img-prev{position:relative;width:96px;height:96px;border-radius:12px;overflow:hidden;border:1px solid var(--line);box-shadow:0 1px 2px rgba(15,23,42,.06),0 8px 20px rgba(15,23,42,.08)}
+  .tpl-img-prev img{width:100%;height:100%;object-fit:cover;display:block}
+  .tpl-img-prev .x{position:absolute;top:5px;inset-inline-start:5px;width:24px;height:24px;border-radius:50%;border:0;padding:0;background:rgba(15,23,42,.72);color:#fff;font-size:12px;line-height:24px;cursor:pointer;transition:background .15s}
+  .tpl-img-prev .x:hover{background:var(--red)}
+  .bt-row{display:flex;gap:12px;align-items:flex-start}
+  .bt-thumb{flex:none;width:64px;height:64px;border-radius:10px;object-fit:cover;border:1px solid var(--line)}
   .wa-bubble{position:relative;background:#fff;border-radius:12px;border-top-right-radius:3px;padding:12px 13px;box-shadow:0 1px 1px rgba(0,0,0,.13);max-width:88%;margin-inline-start:auto}
   .wa-bubble img{border-radius:8px;margin-bottom:8px}
   .wa-bubble .txt{font-size:13.5px;color:#111;line-height:1.5;white-space:pre-line}
@@ -714,6 +722,13 @@ function renderSend(){
       <div class="field"><label>שם התבנית (לזיהוי פנימי)</label><input id="bt-title" placeholder="למשל: מבצע פסח"></div>
       <div class="field"><label>תוכן ההודעה</label><textarea id="bt-body" placeholder="כתבו את ההודעה שתרצו לשדר… אפשר להשתמש ב-{{שם}} כדי לפנות לחבר בשמו."></textarea>
         <div style="font-size:12px;color:var(--muted);margin-top:5px">💡 {{שם}} יוחלף בשם החבר · לא יכול להיות המילה הראשונה או האחרונה · אישור מטא לוקח בין כמה דקות ליממה.</div></div>
+      <div class="field"><label>תמונה בראש ההודעה (לא חובה)</label>
+        <div class="tpl-img-pick">
+          <label class="btn btn-ghost" for="bt-img-file" style="cursor:pointer"><svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="m21 15-5-5L5 21"/></svg>הוספת תמונה</label>
+          <input type="file" id="bt-img-file" accept="image/jpeg,image/png" style="display:none" onchange="pickTplImage(this)">
+          <div id="bt-img-prev" class="tpl-img-prev" style="display:none"><img id="bt-img-thumb" alt="התמונה שתצורף"><button type="button" class="x" onclick="clearTplImage()" aria-label="הסרת התמונה">✕</button></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:5px">🖼️ JPG או PNG · התמונה תופיע מעל הטקסט, כמו בהודעת ברוכים הבאים ויום הולדת · אחרי האישור היא קבועה לתבנית הזו.</div></div>
       <button class="btn btn-ghost" onclick="submitTemplate()">שלח לאישור מטא<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:#059669"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></button>
       <div id="bcast-list" style="margin-top:16px"><div class="empty" style="padding:12px">טוען…</div></div>
     </div>
@@ -733,12 +748,36 @@ async function loadBcastTemplates(){
   if(!mine.length){ el.innerHTML='<div class="empty" style="padding:12px">עדיין לא שלחתם תבנית. כתבו הודעה ושלחו לאישור — הסטטוס יופיע כאן.</div>'; return; }
   const esc=s=>(''+(s||'')).replace(/</g,'&lt;');
   const bd=s=>({submit:['📤 נשלח…','#6b7280','#f3f4f6'],pending:['⏳ ממתין לאישור מטא','#b45309','#fef3c7'],approved:['✅ אושר — מוכן לשידור','#059669','#d1fae5'],rejected:['❌ נדחה','#dc2626','#fee2e2'],error:['⚠️ שגיאה','#dc2626','#fee2e2']}[s]||['—','#6b7280','#f3f4f6']);
-  el.innerHTML=mine.map(t=>{const[lbl,fg,bg]=bd(t.status);return `<div style="padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
+  el.innerHTML=mine.map(t=>{const[lbl,fg,bg]=bd(t.status);return `<div class="bt-row" style="padding:11px 13px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
+    ${t.status!=='submit'?`<img class="bt-thumb" src="${TPL_IMG_URL(t.id)}" alt="" loading="lazy" onerror="this.remove()">`:''}
+    <div style="flex:1;min-width:0">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>${esc(t.title)}</b><span style="background:${bg};color:${fg};border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:700;white-space:nowrap">${lbl}</span></div>
     <div style="font-size:13px;color:var(--muted);margin-top:6px;white-space:pre-wrap">${esc(t.body)}</div>
-    ${t.status==='rejected'&&t.reason?`<div style="font-size:12px;color:#dc2626;margin-top:6px">סיבת דחייה: ${esc(t.reason)}</div>`:''}
-    ${t.status==='approved'?'<div style="font-size:12px;color:#059669;margin-top:6px">↑ בחרו אותה למעלה ב"תבנית הודעה" כדי לשדר</div>':''}</div>`;}).join('');
+    ${t.status==='rejected'&&t.reason&&!t.reason.startsWith('img:')?`<div style="font-size:12px;color:#dc2626;margin-top:6px">סיבת דחייה: ${esc(t.reason)}</div>`:''}
+    ${t.status==='approved'?'<div style="font-size:12px;color:#059669;margin-top:6px">↑ בחרו אותה למעלה ב"תבנית הודעה" כדי לשדר</div>':''}</div></div>`;}).join('');
 }
+/* תמונה בראש תבנית (29/09/2026). אין עמודה לתמונה (אין גישת DDL לפרויקט) → ה-JPEG המוקטן נשלח ב-reason
+   כ-"img:data:image/jpeg;base64,…" בשורת submit; מנהל התבניות בשרת מעביר אותו ל-Storage
+   template-images/<id>.jpg ומגיש למטא עם כותרת IMAGE. השולח מצרף אותה לכל הודעה. */
+const TPL_IMG_URL=id=>SB_URL+'/storage/v1/object/public/template-images/'+id+'.jpg';
+let _tplImg=null;
+function pickTplImage(inp){
+  const f=inp.files&&inp.files[0]; inp.value='';
+  if(!f)return;
+  if(!/^image\/(jpeg|png)$/.test(f.type)){toast('אפשר לצרף רק תמונת JPG או PNG');return;}
+  if(f.size>15*1024*1024){toast('התמונה גדולה מדי (עד 15MB)');return;}
+  const url=URL.createObjectURL(f), im=new Image();
+  im.onload=()=>{
+    const k=Math.min(1,1200/Math.max(im.width,im.height)), c=document.createElement('canvas');
+    c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
+    const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height); g.drawImage(im,0,0,c.width,c.height);
+    _tplImg=c.toDataURL('image/jpeg',0.86); URL.revokeObjectURL(url);
+    $('#bt-img-thumb').src=_tplImg; $('#bt-img-prev').style.display='';
+  };
+  im.onerror=()=>{URL.revokeObjectURL(url);toast('לא הצלחתי לקרוא את התמונה');};
+  im.src=url;
+}
+function clearTplImage(){_tplImg=null;const p=$('#bt-img-prev');if(p)p.style.display='none';}
 async function submitTemplate(){
   const title=($('#bt-title').value||'').trim(), body=($('#bt-body').value||'').trim();
   if(!title||!body){toast('נא למלא שם ותוכן');return;}
@@ -746,10 +785,12 @@ async function submitTemplate(){
   if(/^\{\{\s*שם\s*\}\}/.test(body)||/\{\{\s*שם\s*\}\}$/.test(body)){
     toast('❌ {{שם}} לא יכול להיות בתחילת או בסוף ההודעה — זה חוק של מטא. הוסף מילה לפניו או אחריו (למשל: חבר יקר {{שם}},).');return;}
   try{
-    const res=await sbFetch('/rest/v1/broadcast_templates',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({title,body,status:'submit'})});
+    const row={title,body,status:'submit'}; if(_tplImg)row.reason='img:'+_tplImg;
+    const res=await sbFetch('/rest/v1/broadcast_templates',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(row)});
     if(!res.ok)throw new Error(res.status);
-    $('#bt-title').value='';$('#bt-body').value='';
-    toast('נשלח לאישור מטא ✓');
+    const withImg=!!_tplImg;
+    $('#bt-title').value='';$('#bt-body').value='';clearTplImage();
+    toast(withImg?'נשלח לאישור מטא עם התמונה ✓':'נשלח לאישור מטא ✓');
     setTimeout(loadBcastTemplates,1200);
   }catch(e){toast('שגיאה בשליחה');}
 }
@@ -766,15 +807,18 @@ function updatePreview(){
   const tpl=$('#snd-tpl').value;
   const bt=_bcastTpls.find(x=>x.meta_name===tpl);
   let t;
-  if(bt){                                 // תבנית מהסנכרון: מערכת → התמונה שלה, מותאמת → בלי תמונה (נשלחת כטקסט)
+  if(bt){                                 // תבנית מערכת → התמונה שלה; מותאמת → התמונה שצורפה לה (אם יש)
     const sys={welcome:'welcome',birthday:'bday',review:'review'}[bt.system_kind];
-    t={img: sys?TEMPLATES[sys].img:null, txt:bt.body};
+    t={img: sys?TEMPLATES[sys].img:TPL_IMG_URL(bt.id), txt:bt.body, probe:!sys};
   } else { t=TEMPLATES[tpl]||null; }       // fallback ישן
   if(!t)return;
   const _s=recipientName()||'אחמד';
   $('#pv-txt').textContent=t.txt.replaceAll('{{שם}}',_s).replaceAll('{שם}',_s);
   const img=$('#pv-img');
-  if(t.img){img.src=t.img;img.style.display='';}else{img.style.display='none';}
+  if(!t.img){img.style.display='none';return;}
+  if(t.probe){img.style.display='none';img.onload=()=>{img.style.display='';};img.onerror=()=>{img.style.display='none';};}
+  else{img.onload=img.onerror=null;img.style.display='';}
+  img.src=t.img;
 }
 /* --- single recipient --- */
 let chosenRecip=null, _recResults=[];
