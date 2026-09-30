@@ -478,8 +478,16 @@ const mapRow=r=>({id:r.id,name:r.name,phone:toLocal(r.phone),birthday:r.birthday
   welcome_sent:!!r.welcome_sent_at,group_sent:!!r.wa_group_invited,bday_sent_year:r.birthday_sent_year,review_sent:!!r.review_sent_at});
 
 const Store = {
-  async load(){ const res=await sbFetch('/rest/v1/members?select=*&order=created_at.desc');
-    if(!res.ok) throw new Error('load '+res.status); _cache=(await res.json()).map(mapRow); return _cache; },
+  // PostgREST returns at most 1000 rows per request → page through all members (30/09/2026: 1,002 members,
+  // the CRM showed 1,000 and broadcasts to "all" silently skipped the oldest ones)
+  async load(){ const rows=[], PAGE=1000;
+    for(let from=0;;from+=PAGE){
+      const res=await sbFetch('/rest/v1/members?select=*&order=created_at.desc,id.desc',{headers:{'Range-Unit':'items','Range':from+'-'+(from+PAGE-1)}});
+      if(!res.ok) throw new Error('load '+res.status);
+      const page=await res.json(); rows.push(...page);
+      if(page.length<PAGE) break;
+    }
+    _cache=rows.map(mapRow); return _cache; },
   all(){ return _cache; },
   async add(m){ const res=await sbFetch('/rest/v1/rpc/join_member',{method:'POST',
       body:JSON.stringify({p_name:m.name,p_phone:m.phone,p_birthday:m.birthday||null,
