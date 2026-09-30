@@ -901,8 +901,8 @@ async function doSend(){
     if(!confirm('⚠️ שליחה המונית ל-'+targets.length+' חברים\nתבנית: '+bt.title+when+'\n\nזו פעולה שאי אפשר לבטל. לאשר?')) return;
   }
   if(!targets.length){toast('אין נמענים תואמים');return;}
-  let ok=0;
-  for(const t of targets){ try{ await enqueueOne(t.phone,t.name,sendKind,tpl,sendAt); ok++; }catch(e){} }
+  const {ok,failed}=await enqueueMany(targets,sendKind,tpl,sendAt);
+  if(failed){ alert('⚠️ '+ok+' הודעות נכנסו לתור, אבל '+failed+' לא נכנסו (שגיאת שמירה). נסו לשלוח שוב לנמענים שחסרו.'); return; }
   toast(sendAt ? (ok+' הודעות תוזמנו ל-'+whenLabel+' ✓') : (ok+' הודעות נכנסו לתור השליחה — יישלחו תוך דקה ✓'));
 }
 
@@ -1000,11 +1000,26 @@ async function saveEdit(id){
 // שליחה אמיתית: מכניס לתור send_queue → שרת Hetzner שולח דרך WhatsApp Cloud API הרשמי (תבנית מאושרת) תוך ~דקה. בלי לפתוח וואטסאפ.
 const PUBLIC_ASSETS='https://crm.hamovilcenter.co.il';
 function fillTpl(txt,m){return (txt||'').replace('{שם}',(m.name||'').split(' ')[0]);}
-async function enqueueOne(phone,name,kind,tpl,sendAt){
+function queueRow(phone,name,kind,tpl,sendAt){
   const body={to_phone:phone,to_name:name||'',kind:kind,text:fillTpl(tpl.txt,{name:name}),image_url:tpl.img?(PUBLIC_ASSETS+'/'+tpl.img):null};
   if(sendAt) body.sent_at=sendAt;   // מתוזמן: ה-worker שולח כשהזמן מגיע (sent_at = מועד מבוקש כל עוד status=pending)
-  const res=await sbFetch('/rest/v1/send_queue',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(body)});
+  return body;
+}
+async function enqueueOne(phone,name,kind,tpl,sendAt){
+  const res=await sbFetch('/rest/v1/send_queue',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(queueRow(phone,name,kind,tpl,sendAt))});
   if(!res.ok) throw new Error('enqueue '+res.status);
+}
+/* שידור לכולם בבקשות מרוכזות של 500 (30/09/2026): לולאה של הכנסה-אחת-אחת לקחה 10 דקות ל-971 הודעות,
+   ו-30 החברים האחרונים ברשימה (הוותיקים) לא נכנסו לתור כשהלשונית/המסך נסגרו באמצע. עכשיו זה שניות. */
+async function enqueueMany(targets,kind,tpl,sendAt){
+  let ok=0, failed=0;
+  for(let i=0;i<targets.length;i+=500){
+    const chunk=targets.slice(i,i+500).map(t=>queueRow(t.phone,t.name,kind,tpl,sendAt));
+    let res=await sbFetch('/rest/v1/send_queue',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(chunk)});
+    if(!res.ok) res=await sbFetch('/rest/v1/send_queue',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(chunk)});   // one retry
+    if(res.ok) ok+=chunk.length; else failed+=chunk.length;
+  }
+  return {ok,failed};
 }
 async function quickSend(id){const m=Store.all().find(x=>x.id===id);try{await enqueueOne(m.phone,m.name,'welcome',TEMPLATES.welcome);toast('ברוכים הבאים יישלח ל'+m.name.split(' ')[0]+' ✓');}catch(e){toast('שגיאה בשליחה');}}
 async function quickReview(id){const m=Store.all().find(x=>x.id===id);
