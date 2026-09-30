@@ -108,7 +108,7 @@
   .hero-card:hover .hc-visual img{transform:rotate(-4deg) translateY(-3px)}
   @media(max-width:640px){.hero-card{min-height:0}.hc-text{padding:22px 22px 18px}.hc-text h2{font-size:24px}.hc-visual{width:130px;padding:8px}.hc-visual img{transform:rotate(-6deg)}.hc-stats{gap:16px}.hc-stats .s b{font-size:17px}}
 
-  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
   .stat{position:relative;padding:22px 22px 20px;overflow:hidden}
   .stat .ico{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:16px}
   .stat .ico svg{width:21px;height:21px;stroke-width:2}
@@ -310,7 +310,13 @@
   .botnav{display:none}
 
   /* ============ RESPONSIVE ============ */
-  @media(max-width:1080px){.stat-grid{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}}
+  @media(max-width:1080px){.stat-grid{grid-template-columns:1fr 1fr}.grid-2{grid-template-columns:1fr}
+    /* 5th card (churn) spans the row → horizontal: icon · value · label/delta */
+    .stat-grid>.stat:nth-child(5){grid-column:1/-1;display:grid;grid-template-columns:auto auto 1fr;column-gap:16px;align-items:center}
+    .stat-grid>.stat:nth-child(5) .ico{grid-row:1/3;margin-bottom:0}
+    .stat-grid>.stat:nth-child(5) .val{grid-row:1/3}
+    .stat-grid>.stat:nth-child(5) .lbl{grid-column:3;margin-top:0;align-self:end}
+    .stat-grid>.stat:nth-child(5) .delta{grid-column:3;align-self:start;margin-top:4px}}
   @media(max-width:860px){
     .app{grid-template-columns:1fr}
     .side{display:none}
@@ -443,7 +449,7 @@ function seed(){
 const SB_URL='https://paaabtfmaagqifezvnxo.supabase.co';
 const SB_ANON='sb_publishable_0vi4Csf3X4mRKBTxZ3IuNA_RwSLHy3q';   // client-side key; RLS מגן על הנתונים
 const SESS_KEY='hc_sess', MONTH_MS=30*24*60*60*1000;   // ניתוק רק אחרי חודש חוסר פעילות
-let _cache=[], _token=null;
+let _cache=[], _token=null, _selfOut=new Set();   // _selfOut: members who removed themselves (message_log kind=unsubscribe)
 
 function loadSess(){ try{return JSON.parse(localStorage.getItem(SESS_KEY));}catch(e){return null;} }
 function saveSess(j){ localStorage.setItem(SESS_KEY, JSON.stringify({access:j.access_token, refresh:j.refresh_token, last:Date.now()})); _token=j.access_token; }
@@ -487,6 +493,9 @@ const Store = {
       const page=await res.json(); rows.push(...page);
       if(page.length<PAGE) break;
     }
+    // self-removals (unsubscribe link / "הסר") log kind=unsubscribe; a staff removal from the member card doesn't
+    try{ const u=await sbFetch('/rest/v1/message_log?select=member_id&kind=eq.unsubscribe');
+      if(u.ok) _selfOut=new Set((await u.json()).map(r=>r.member_id)); }catch(e){}
     _cache=rows.map(mapRow); return _cache; },
   all(){ return _cache; },
   async add(m){ const res=await sbFetch('/rest/v1/rpc/join_member',{method:'POST',
@@ -530,6 +539,7 @@ function stats(){
     bdays:d.filter(isBdayThisMonth).length,
     pro:d.filter(m=>m.type==='pro').length,
     priv:d.filter(m=>m.type==='private').length,
+    selfOut:d.filter(m=>m.status==='opted_out'&&_selfOut.has(m.id)).length,   // re-activated by staff = no longer counted
   };
 }
 function monthlyJoins(){
@@ -567,6 +577,7 @@ function renderOverview(){
       ${statCard('r','spark','נרשמו החודש',s.newMonth,'מגמת עלייה','up')}
       ${statCard('w','gift','ימי הולדת החודש',s.bdays,'ברכות אוטומטיות','flat')}
       ${statCard('g','tag','אנשי מקצוע / קבלנים',s.pro,`${s.priv} פרטיים`,'flat')}
+      ${statCard('r','out','נטישת מועדון',(+(s.total?s.selfOut/s.total*100:0).toFixed(1))+'%',`${s.selfOut} הסירו את עצמם`,'flat')}
     </div>
     <div class="grid-2">
       <div class="card panel">
@@ -599,7 +610,8 @@ function statCard(clr,ic,lbl,val,delta,dir){
   const icons={users:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 20a5.5 5.5 0 0 0-3-4.9"/>',
     spark:'<path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H13L13 2z"/>',
     gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8M12 8v13M12 8S10.5 4 8 4 5 8 8 8M12 8s1.5-4 4-4 3 4 0 4"/>',
-    tag:'<path d="M20.6 13.4 12 22l-8.6-8.6A2 2 0 0 1 2.8 12V4a2 2 0 0 1 2-2h8a2 2 0 0 1 1.4.6l6.4 8.4a2 2 0 0 1 0 2.4z"/><circle cx="7" cy="7" r="1.3"/>'};
+    tag:'<path d="M20.6 13.4 12 22l-8.6-8.6A2 2 0 0 1 2.8 12V4a2 2 0 0 1 2-2h8a2 2 0 0 1 1.4.6l6.4 8.4a2 2 0 0 1 0 2.4z"/><circle cx="7" cy="7" r="1.3"/>',
+    out:'<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 11h6"/>'};
   return `<div class="card stat"><div class="corner-motif"></div>
     <div class="ico ${clr}"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24">${icons[ic]}</svg></div>
     <div class="val">${val}</div><div class="lbl">${lbl}</div>
@@ -1126,7 +1138,7 @@ function printQR(){
 }
 
 /* ===== היסטוריית הודעות ===== */
-const KIND_LBL={welcome:'ברוכים הבאים',birthday:'יום הולדת',review:'תודה + ביקורת',deal:'מבצע',custom:'הודעה'};
+const KIND_LBL={welcome:'ברוכים הבאים',birthday:'יום הולדת',review:'תודה + ביקורת',deal:'מבצע',custom:'הודעה',unsubscribe:'הסרה עצמית מהתפוצה'};
 // תבניות שידור: kind ב-message_log = meta_name (club_bcast_…) → ממפים לשם התבנית לתצוגה
 let _bcastTitles={};
 async function loadBcastTitles(){
@@ -1147,7 +1159,7 @@ async function loadHistory(){
   await loadBcastTitles();
   try{
     if(!rows.length){el.innerHTML='<div class="empty">עדיין לא נשלחו הודעות. כאן תופיע כל הודעה שנשלחה — אוטומטית או ידנית.</div>';return;}
-    const badge=r=>r.status==='sent'?'<span class="tag act">נשלח</span>':'<span class="tag out">נכשל</span>';
+    const badge=r=>r.status==='sent'?'<span class="tag act">נשלח</span>':r.status==='self'?'<span class="tag out">הוסר</span>':'<span class="tag out">נכשל</span>';
     const trs=rows.map(r=>`<tr>
       <td><div class="m-name"><div class="av" style="background:${avColor(r.to_name||r.to_phone)}">${initials(r.to_name||'?')}</div><span class="nm">${r.to_name||'—'}</span></div></td>
       <td class="phone">${r.to_phone}</td>
@@ -1171,7 +1183,8 @@ async function loadMemberHistory(id){
       sbFetch('/rest/v1/inbound_messages?select=body,created_at&member_id=eq.'+id+'&order=created_at.desc&limit=50')
     ]);
     await loadBcastTitles();
-    const out=(outR.ok?await outR.json():[]).map(r=>({d:'out',t:r.created_at,label:KIND_LBL[r.kind]||_bcastTitles[r.kind]||r.kind||'הודעה',ok:r.status==='sent'}));
+    const out=(outR.ok?await outR.json():[]).map(r=>r.kind==='unsubscribe'?{d:'in',t:r.created_at,label:'הסיר את עצמו מהתפוצה'}
+      :{d:'out',t:r.created_at,label:KIND_LBL[r.kind]||_bcastTitles[r.kind]||r.kind||'הודעה',ok:r.status==='sent'});
     const inb=(inR.ok?await inR.json():[]).map(r=>({d:'in',t:r.created_at,label:(r.body||'(ללא טקסט)')}));
     const all=[...out,...inb].sort((a,b)=>new Date(b.t)-new Date(a.t)).slice(0,60);
     if(!all.length){el.innerHTML='<div class="tl-i pending"><div class="tt">אין הודעות עדיין</div><div class="td">הודעות ותגובות יופיעו כאן</div></div>';return;}
